@@ -3,6 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --hero-accent: #454eff;
+  --home-background-image: url("/home_background.png");
+  --home-background-position: center bottom;
 }
 
 @theme inline {
@@ -48,4 +51,28 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Dev (Turbopack)에서 @theme만으로는 bg-charcoal 규칙이 안 생기는 경우가 있어 명시 */
+@layer utilities {
+  .bg-charcoal {
+    background-color: #3a3a3a;
+  }
+  .text-charcoal {
+    color: #3a3a3a;
+  }
+  .border-charcoal {
+    border-color: #3a3a3a;
+  }
+
+  .bg-home-background-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-color: #e8eef5;
+    background-image: var(--home-background-image);
+    background-size: cover;
+    background-position: var(--home-background-position);
+    background-repeat: no-repeat;
+  }
 }
