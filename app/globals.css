@@ -3,6 +3,10 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* 홈 히어로 배경 PNG — public 폴더에 같은 이름으로 넣기 */
+  --home-background-image: url("/home_background.png");
+  /* cover일 때 초점: 아래쪽을 더 살리려면 center bottom, 더 조정은 center 75% 처럼 % 사용 */
+  --home-background-position: center bottom;
 }
 
 @theme inline {
@@ -23,4 +27,29 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Dev (Turbopack)에서 @theme만으로는 bg-charcoal 규칙이 안 생기는 경우가 있어 명시 */
+@layer utilities {
+  .bg-charcoal {
+    background-color: #3a3a3a;
+  }
+  .text-charcoal {
+    color: #3a3a3a;
+  }
+  .border-charcoal {
+    border-color: #3a3a3a;
+  }
+
+  /* 홈: cover = 화면 꽉 참 + 비율 유지(늘리지 않음), 잘림은 가장자리만 */
+  .bg-home-background-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-color: #e8eef5;
+    background-image: var(--home-background-image);
+    background-size: cover;
+    background-position: var(--home-background-position);
+    background-repeat: no-repeat;
+  }
 }
