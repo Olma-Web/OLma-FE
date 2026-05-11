@@ -3,37 +3,30 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
-
-// TODO: API 연동 후 실제 인증으로 교체
-const MOCK_USER = { id: "test", password: "1234" };
+import { authAPI } from "@/lib/api";
+import { PasswordInput } from "@/components/ui/PassWordInput";
 
 export default function LoginPage() {
-  const [id, setId] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [idError, setIdError] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
-  const isActive = id.length > 0 && password.length > 0;
+  const isActive = email.length > 0 && password.length > 0;
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!isActive) return;
 
-    if (id !== MOCK_USER.id) {
-      setIdError("아이디를 다시 입력해주세요.");
-      setPasswordError("");
-      return;
+    try {
+      const data = await authAPI.login(email, password);
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("userId", String(data.id));
+      window.location.href = "/";
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : "서버에 연결할 수 없어요");
     }
-    if (password !== MOCK_USER.password) {
-      setIdError("");
-      setPasswordError("비밀번호가 일치하지 않습니다.");
-      return;
-    }
-    setIdError("");
-    setPasswordError("");
-    // TODO: 로그인 성공 후 라우팅 처리
   };
 
   return (
@@ -61,47 +54,34 @@ export default function LoginPage() {
 
           <div className="w-full rounded-2xl bg-white px-10 py-10 shadow-lg">
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+
+              {/* 이메일 */}
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-titlefont1">아이디</label>
+                <label className="text-sm font-medium text-titlefont1">이메일</label>
                 <input
-                  type="text"
-                  value={id}
-                  onChange={(e) => { setId(e.target.value); setIdError(""); }}
-                  placeholder="아이디를 입력하세요"
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
+                  placeholder="이메일을 입력하세요"
                   className={`rounded-lg border px-5 py-3 text-sm bg-bg2 text-titlefont2 placeholder:text-bodyfont4 focus:outline-none focus:ring-2 transition-all ${
-                    idError
+                    emailError
                       ? "border-red-400 focus:border-red-400 focus:ring-red-100"
                       : "border-line1 focus:border-main75 focus:ring-main25"
                   }`}
                 />
-                {idError && <p className="text-xs text-red-500">{idError}</p>}
+                {emailError && <p className="text-xs text-red-500">{emailError}</p>}
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-titlefont1">비밀번호</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={password}
-                    onChange={(e) => { setPassword(e.target.value); setPasswordError(""); }}
-                    placeholder="비밀번호를 입력하세요"
-                    style={!showPassword ? { WebkitTextSecurity: "disc" } as React.CSSProperties : undefined}
-                    className={`w-full rounded-lg border px-5 py-3 pr-11 text-sm bg-bg2 text-titlefont2 placeholder:text-bodyfont4 focus:outline-none focus:ring-2 transition-all ${
-                      passwordError
-                        ? "border-red-400 focus:border-red-400 focus:ring-red-100"
-                        : "border-line1 focus:border-main75 focus:ring-main25"
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-bodyfont4 transition-colors hover:text-bodyfont2"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                {passwordError && <p className="text-xs text-red-500">{passwordError}</p>}
-              </div>
+              {/* 비밀번호 */}
+              <PasswordInput
+                label="비밀번호"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setPasswordError(""); }}
+                placeholder="비밀번호를 입력하세요"
+                show={showPassword}
+                onToggle={() => setShowPassword((v) => !v)}
+                error={passwordError}
+              />
 
               <button
                 type="submit"
@@ -118,10 +98,8 @@ export default function LoginPage() {
 
             <p className="mt-5 text-center text-sm text-bodyfont2">
               계정이 없으신가요?{" "}
-              <Link
-                href="/signup"
-                className="font-medium text-main100 hover:underline transition-opacity hover:opacity-90"
-              >
+              <Link href="/signup"
+                className="font-medium text-main100 hover:underline transition-opacity hover:opacity-90">
                 회원가입
               </Link>
             </p>
