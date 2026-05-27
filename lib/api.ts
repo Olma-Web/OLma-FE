@@ -54,3 +54,42 @@ export const submissionAPI = {
       body: JSON.stringify(body),
     }),
 };
+
+// 유저 프로필 및 제출 이력
+export const userAPI = {
+  getProfile: (userId: number) =>
+    fetchAPI(`/v1/users/${userId}`),
+
+  getSubmissions: (userId: number) =>
+    fetchAPI(`/v1/users/${userId}/submissions`),
+
+  updateProfile: (userId: number, body: {
+    jobCategoryId?: number;
+    experienceLevelId?: number;
+    certificateTypeIds?: number[];
+  }) =>
+    fetchAPI(`/v1/users/${userId}/profile`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+};
+
+// 벤치마크
+export const benchmarkAPI = {
+  get: (params: {
+    jobCategoryId: number;
+    experienceLevelId?: number;
+    workFormat?: string;
+    userAmount?: number;
+  }) => {
+    if (params.jobCategoryId == null) {
+      return Promise.reject(new Error("jobCategoryId가 없습니다."));
+    }
+    const qs = new URLSearchParams();
+    qs.set("jobCategoryId", String(params.jobCategoryId));
+    if (params.experienceLevelId != null) qs.set("experienceLevelId", String(params.experienceLevelId));
+    if (params.workFormat != null) qs.set("workFormat", params.workFormat);
+    if (params.userAmount != null) qs.set("userAmount", String(params.userAmount));
+    return fetchAPI(`/v1/benchmark?${qs.toString()}`);
+  },
+};
