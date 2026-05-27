@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Pencil } from "lucide-react";
 import Topbar from "@/components/topbar";
 import EstimateModal from "@/components/estimate/EstimateModal";
 import {
@@ -59,7 +60,7 @@ export default function EstimatePage() {
         </div>
 
         {/* 현재 등록된 스펙 */}
-        <div className="rounded-2xl bg-white px-6 py-4 shadow-sm mb-4 flex items-center gap-3 flex-wrap">
+        <div className="rounded-2xl bg-bg2 px-6 py-4 mb-8 flex items-center gap-3 flex-wrap">
           <span className="text-sm text-bodyfont3 shrink-0">현재 등록된 스펙</span>
           <span className="rounded-full bg-main25 px-3 py-1 text-xs font-medium text-main100">
             {MOCK_SPEC.jobCategory}
@@ -67,13 +68,13 @@ export default function EstimatePage() {
           <span className="rounded-full bg-main25 px-3 py-1 text-xs font-medium text-main100">
             {MOCK_SPEC.experienceLevel}
           </span>
-          <button className="ml-auto flex items-center gap-1 text-xs text-bodyfont3 hover:text-main100 transition-colors">
-            <span>✏️</span>
+          <button className="ml-auto flex items-center gap-1 rounded-lg border border-main100 px-2 py-1.5 text-xs text-main100 hover:bg-main25 transition-colors">
+            <Pencil size={12} />
             <span>수정하기</span>
           </button>
         </div>
 
-        <div className="rounded-2xl bg-white px-8 py-8 shadow-lg flex flex-col gap-8">
+        <div className="rounded-2xl bg-white px-8 py-8 shadow-[0_8px_32px_rgba(0,0,0,0.10)] flex flex-col gap-8">
 
           {/* 1번 질문 */}
           <div className="flex flex-col gap-3">
