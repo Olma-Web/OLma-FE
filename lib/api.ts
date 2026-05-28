@@ -74,6 +74,41 @@ export const userAPI = {
     }),
 };
 
+// 단가 기록 삭제
+export const submissionDeleteAPI = {
+  delete: (submissionId: number) =>
+    fetch(`${BASE_URL}/v1/submissions/${submissionId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...(typeof window !== "undefined" && localStorage.getItem("token")
+          ? { Authorization: `Bearer ${localStorage.getItem("token")}` }
+          : {}),
+      },
+    }).then((res) => {
+      if (!res.ok && res.status !== 204) throw new Error("삭제에 실패했습니다.");
+    }),
+};
+
+// 견적서
+export const estimateAPI = {
+  getList: (userId: number) =>
+    fetchAPI(`/v1/users/${userId}/estimates`),
+
+  delete: (estimateId: number) =>
+    fetch(`${BASE_URL}/v1/estimates/${estimateId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...(typeof window !== "undefined" && localStorage.getItem("token")
+          ? { Authorization: `Bearer ${localStorage.getItem("token")}` }
+          : {}),
+      },
+    }).then((res) => {
+      if (!res.ok && res.status !== 204) throw new Error("삭제에 실패했습니다.");
+    }),
+};
+
 // 벤치마크
 export const benchmarkAPI = {
   get: (params: {
