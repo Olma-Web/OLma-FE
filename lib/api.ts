@@ -95,8 +95,8 @@ export const submissionDeleteAPI = {
 
 // 견적서 보관함
 export const estimateAPI = {
-  getList: (userId: number) =>
-    fetchAPI(`/v1/users/${userId}/estimates`),
+  getList: () =>
+    fetchAPI(`/v1/estimates`),
 
   delete: (estimateId: number) =>
     fetch(`${BASE_URL}/v1/estimates/${estimateId}`, {
@@ -111,18 +111,31 @@ export const estimateAPI = {
       if (!res.ok && res.status !== 204) throw new Error("삭제에 실패했습니다.");
     }),
 
-  calculate: (body: {                                                              // ← 추가
-    experienceLevelId: number;                                                    // ← 추가
-    jobCategoryId: number;                                                        // ← 추가
-    screenCount: number;                                                          // ← 추가
-    uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";               // ← 추가
-    platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";            // ← 추가
-    addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];            // ← 추가
-  }) =>                                                                           // ← 추가
-    fetchAPI("/v1/estimates/calculate", {                                         // ← 추가
-      method: "POST",                                                             // ← 추가
-      body: JSON.stringify(body),                                                 // ← 추가
-    }),                                                                           // ← 추가
+  calculate: (body: {
+    experienceLevelId: number;
+    jobCategoryId: number;
+    screenCount: number;
+    uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";
+    platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
+    addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];
+  }) =>
+    fetchAPI("/v1/estimates/calculate", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  save: (body: {
+    experienceLevelId: number;
+    jobCategoryId: number;
+    screenCount: number;
+    uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";
+    platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
+    addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];
+  }) =>
+    fetchAPI("/v1/estimates", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 // 커리어 보관함 저장

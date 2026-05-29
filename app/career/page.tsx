@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Pencil, Trash2 } from "lucide-react";
 import Topbar from "@/components/topbar";
-import { userAPI, submissionDeleteAPI, careerSaveAPI } from "@/lib/api";
+import { userAPI, submissionDeleteAPI, careerSaveAPI, estimateAPI } from "@/lib/api";
 
 interface UserProfile {
   nickname: string;
@@ -26,9 +26,9 @@ interface SubmissionItem {
 
 interface EstimateItem {
   id: number;
-  projectName?: string;
+  experienceLevelLabel: string;
+  jobCategoryName: string;
   screenCount: number;
-  baseAmount: number;
   uxMultiplier: number;
   platformMultiplier: number;
   addons: string[];
@@ -36,6 +36,12 @@ interface EstimateItem {
   finalAmount: number;
   createdAt: string;
 }
+
+const ADDON_LABELS: Record<string, string> = {
+  PROTOTYPING: "화면 프로토타이핑",
+  DESIGN_SYSTEM: "디자인 시스템",
+  SOURCE_TRANSFER: "소스 파일 전달",
+};
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -119,7 +125,12 @@ export default function CareerPage() {
         setSubmissions([]);
       }
 
-      setEstimates([]);
+      try {
+        const estimatesData = await estimateAPI.getList();
+        setEstimates(estimatesData ?? []);
+      } catch {
+        setEstimates([]);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "데이터를 불러올 수 없어요.");
     } finally {
@@ -140,6 +151,7 @@ export default function CareerPage() {
   };
 
   const deleteEstimate = async (id: number) => {
+    await estimateAPI.delete(id);
     setEstimates((prev) => prev.filter((e) => e.id !== id));
   };
 
@@ -325,57 +337,63 @@ export default function CareerPage() {
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {estimates.map((est) => {
-                  const baseWork = est.screenCount * est.baseAmount;
-                  const afterUx = Math.round(baseWork * est.uxMultiplier);
-                  const afterPlatform = Math.round(afterUx * est.platformMultiplier);
-                  const addonAmount = Math.round(afterPlatform * (est.addonPercent / 100));
+                  // finalAmount는 원(₩) 단위 → 만원 단위로 변환
+                  const toMan = (won: number) => Math.round(won / 10000);
+                  const baseWon = Math.round(est.finalAmount / (est.uxMultiplier * est.platformMultiplier * (1 + est.addonPercent / 100)));
+                  const basePerScreenMan = toMan(Math.round(baseWon / est.screenCount));
+                  const baseMan = toMan(baseWon);
+                  const afterUxMan = Math.round(baseMan * est.uxMultiplier);
+                  const afterPlatformMan = Math.round(afterUxMan * est.platformMultiplier);
+                  const addonAmountMan = Math.round(afterPlatformMan * (est.addonPercent / 100));
+                  const finalMan = toMan(est.finalAmount);
 
                   return (
                     <div
                       key={est.id}
-                      className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm"
+                      className="rounded-2xl bg-bg2 px-5 py-5 shadow-sm"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-bold text-gray-900">
-                            {est.projectName ?? "견적서"}
-                          </p>
-                          <p className="mt-0.5 text-xs text-gray-400">{timeAgo(est.createdAt)}</p>
+                      {/* 헤더 */}
+                      <div className="flex items-center justify-between gap-2 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-gray-900">{est.jobCategoryName}</span>
+                          <span className="text-xs text-gray-400">{timeAgo(est.createdAt)}</span>
                         </div>
                         <button
                           onClick={() => deleteEstimate(est.id)}
-                          className="flex shrink-0 items-center gap-1 rounded-lg border border-[#7c6ff7] px-2.5 py-1 text-xs text-[#7c6ff7] transition hover:bg-[#f3f1ff]"
+                          className="flex shrink-0 items-center gap-1 rounded-lg border border-main100 px-2.5 py-1 text-xs text-main100 transition hover:bg-[#f3f1ff]"
                         >
                           <Trash2 size={12} />
                           삭제하기
                         </button>
                       </div>
 
-                      <div className="mt-4 flex flex-col gap-1.5 rounded-xl bg-gray-50 px-4 py-3 text-xs text-gray-600">
-                        <div className="flex justify-between">
+                      {/* 항목 목록 */}
+                      <div className="flex flex-col text-sm text-body1">
+                        <div className="flex justify-between py-3 border-b border-line2">
                           <span>기본 작업비</span>
-                          <span>{est.screenCount}회 × {est.baseAmount}만 원 = {baseWork}만 원</span>
+                          <span>{est.screenCount}화면 x {basePerScreenMan}만 원 = {baseMan}만 원</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span>UX 기획 가이드</span>
-                          <span>x{est.uxMultiplier} = {afterUx}만 원</span>
+                        <div className="flex justify-between py-3 border-b border-gray-100">
+                          <span>UX 기획 관여도</span>
+                          <span>x{est.uxMultiplier} = {afterUxMan}만 원</span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className={`flex justify-between py-3 ${est.addons.length > 0 ? "border-b border-gray-100" : ""}`}>
                           <span>플랫폼 배수</span>
-                          <span>x{est.platformMultiplier} = {afterPlatform}만 원</span>
+                          <span>x{est.platformMultiplier} = {afterPlatformMan}만 원</span>
                         </div>
-                        {est.addonPercent > 0 && (
-                          <div className="flex justify-between">
-                            <span>추가 옵션</span>
-                            <span>+{addonAmount}만 원 (+{est.addonPercent}%)</span>
+                        {est.addons.map((addon, i) => (
+                          <div key={addon} className={`flex justify-between py-3 ${i < est.addons.length - 1 ? "border-b border-gray-100" : ""}`}>
+                            <span>{ADDON_LABELS[addon] ?? addon}</span>
+                            <span>+{addonAmountMan}만 원 (+{est.addonPercent}%)</span>
                           </div>
-                        )}
+                        ))}
                       </div>
 
-                      <div className="mt-3 flex items-center justify-between">
-                        <span className="text-xs text-gray-500">경쟁 최소 방어 견적</span>
-                        <span className="text-base font-bold text-[#7c6ff7]">
-                          {formatAmount(est.finalAmount)}
+                      {/* 최종 금액 */}
+                      <div className="mt-2 flex items-center justify-between pt-3">
+                        <span className="text-sm font-semibold text-main100">권장 최소 방어 견적</span>
+                        <span className="text-lg font-bold text-main100">
+                          ₩{finalMan.toLocaleString()}만 원
                         </span>
                       </div>
                     </div>

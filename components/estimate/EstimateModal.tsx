@@ -1,4 +1,6 @@
-// components/estimate/EstimateModal.tsx
+"use client";
+
+import { useState } from "react";
 
 const ADDON_LABEL: Record<string, string> = {
   DESIGN_SYSTEM: "개발자용 디자인 시스템 구축",
@@ -11,9 +13,12 @@ const toMan = (won: number) => Math.round(won / 10000);
 interface Props {
   result: Record<string, unknown>;
   onClose: () => void;
+  onSave: () => Promise<void>;
 }
 
-export default function EstimateModal({ result, onClose }: Props) {
+export default function EstimateModal({ result, onClose, onSave }: Props) {
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
   const finalAmount = result.finalAmount as number;
   const screenCount = result.screenCount as number;
   const step1BasicFee = result.step1BasicFee as number;
@@ -24,6 +29,18 @@ export default function EstimateModal({ result, onClose }: Props) {
   const addonPercent = result.addonPercent as number;
   const step4AddonFee = result.step4AddonFee as number;
   const addons = result.addons as string[];
+
+  const handleSave = async () => {
+    if (saveStatus === "saving" || saveStatus === "saved") return;
+    setSaveStatus("saving");
+    try {
+      await onSave();
+      setSaveStatus("saved");
+    } catch {
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
@@ -66,8 +83,15 @@ export default function EstimateModal({ result, onClose }: Props) {
         </div>
 
         <div className="flex gap-3">
-          <button className="flex-1 rounded-2xl bg-gradient-to-r from-main100 to-sub175 py-3 text-sm font-semibold text-white hover:brightness-105 transition-all cursor-pointer">
-            내 보관함에 저장하기
+          <button
+            onClick={handleSave}
+            disabled={saveStatus === "saving" || saveStatus === "saved"}
+            className="flex-1 rounded-2xl bg-gradient-to-r from-main100 to-sub175 py-3 text-sm font-semibold text-white hover:brightness-105 transition-all cursor-pointer disabled:cursor-default disabled:opacity-70"
+          >
+            {saveStatus === "saving" && "저장 중..."}
+            {saveStatus === "saved" && "저장되었습니다 ✓"}
+            {saveStatus === "error" && "저장 실패"}
+            {saveStatus === "idle" && "내 보관함에 저장하기"}
           </button>
           <button className="flex-1 rounded-2xl border border-main100 py-3 text-sm font-semibold text-main100 hover:bg-main25 transition-all cursor-pointer">
             이미지로 저장하기
