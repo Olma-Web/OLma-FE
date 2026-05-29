@@ -19,6 +19,12 @@ export default function Topbar() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [nickname, setNickname] = useState("User");
+  const [toast, setToast] = useState(false);
+
+  const showToast = () => {
+    setToast(true);
+    setTimeout(() => setToast(false), 2500);
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -52,6 +58,11 @@ export default function Topbar() {
 
   return (
     <header className="relative flex min-h-14 items-center bg-charcoal px-4 py-3 md:min-h-16 md:px-8">
+      {toast && (
+        <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-xl bg-gray-900 px-5 py-3 text-sm text-white shadow-lg">
+          로그인 후 이용할 수 있어요
+        </div>
+      )}
       <Link href="/" className="relative z-10 shrink-0">
         <Image
           src="/logo.svg"
@@ -72,17 +83,26 @@ export default function Topbar() {
             const isActive = pathname === item.href;
             return (
               <li key={item.label}>
-                <Link
-                  href={item.href}
-                  className={
-                    isActive
-                      ? "rounded-lg bg-main100 px-3 py-1.5 text-white"
-                      : "transition-opacity hover:opacity-90"
-                  }
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  {item.label}
-                </Link>
+                {isLoggedIn ? (
+                  <Link
+                    href={item.href}
+                    className={
+                      isActive
+                        ? "rounded-lg bg-main100 px-3 py-1.5 text-white"
+                        : "transition-opacity hover:opacity-90"
+                    }
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    {item.label}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={showToast}
+                    className="transition-opacity hover:opacity-90"
+                  >
+                    {item.label}
+                  </button>
+                )}
               </li>
             );
           })}

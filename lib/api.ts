@@ -126,6 +126,9 @@ export const careerSaveAPI = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  getById: (id: number) =>
+    fetchAPI(`/v1/submissions/${id}`),
 };
 
 // 벤치마크

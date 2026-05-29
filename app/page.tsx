@@ -24,7 +24,7 @@ export default function Home() {
           </h1>
 
           <Link
-            href="#"
+            href="/onboarding"
             className="mb-11 inline-flex items-center gap-2 rounded-xl bg-main100 px-15 py-3.5 text-[15px] font-semibold text-white shadow-[0_12px_32px_-8px_rgba(69,78,255,0.45)] transition hover:brightness-105"
           >
             내 단가 분석하기

@@ -289,7 +289,20 @@ export default function MarketDashboard() {
         const latest: SubmissionItem | null = submissions?.[0] ?? null;
         setUserProfile(profile);
         setLatestSubmission(latest);
-        if (latest) setSaveStatus("saved");
+
+        // localStorage에 저장된 ID 목록 중 하나라도 서버에 존재하면 "저장됨"
+        const raw = localStorage.getItem("careerSavedIds");
+        const savedIds: number[] = raw ? JSON.parse(raw) : [];
+        if (savedIds.length > 0) {
+          const checks = await Promise.allSettled(
+            savedIds.map((id) => careerSaveAPI.getById(id))
+          );
+          const surviving = savedIds.filter((_, i) => checks[i].status === "fulfilled");
+          if (surviving.length !== savedIds.length) {
+            localStorage.setItem("careerSavedIds", JSON.stringify(surviving));
+          }
+          if (surviving.length > 0) setSaveStatus("saved");
+        }
 
         if (!profile.jobCategoryId) {
           setBenchmark(null);
@@ -323,7 +336,7 @@ export default function MarketDashboard() {
 
     setSaveStatus("saving");
     try {
-      await careerSaveAPI.save({
+      const result = await careerSaveAPI.save({
         jobCategoryId: userProfile.jobCategoryId,
         experienceLevelId: userProfile.experienceLevelId,
         userId,
@@ -333,8 +346,11 @@ export default function MarketDashboard() {
         amountUnit: latestSubmission.amountUnit,
         sessionId: crypto.randomUUID(),
       });
+      const raw = localStorage.getItem("careerSavedIds");
+      const ids: number[] = raw ? JSON.parse(raw) : [];
+      if (!ids.includes(result.id)) ids.push(result.id);
+      localStorage.setItem("careerSavedIds", JSON.stringify(ids));
       setSaveStatus("saved");
-      setTimeout(() => setSaveStatus("idle"), 3000);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "저장에 실패했습니다.";
       alert(msg);

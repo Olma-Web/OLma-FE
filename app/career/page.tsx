@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Pencil, Trash2 } from "lucide-react";
 import Topbar from "@/components/topbar";
-import { userAPI, submissionDeleteAPI, estimateAPI } from "@/lib/api";
+import { userAPI, submissionDeleteAPI, estimateAPI, careerSaveAPI } from "@/lib/api";
 
 interface UserProfile {
   nickname: string;
@@ -95,12 +95,29 @@ export default function CareerPage() {
     }
 
     try {
-      const [profileData, submissionsData] = await Promise.all([
-        userAPI.getProfile(userId),
-        userAPI.getSubmissions(userId),
-      ]);
+      const profileData = await userAPI.getProfile(userId);
       setProfile(profileData);
-      setSubmissions(submissionsData ?? []);
+
+      // localStorage에 저장된 ID들만 개별 조회
+      const raw = localStorage.getItem("careerSavedIds");
+      const savedIds: number[] = raw ? JSON.parse(raw) : [];
+      if (savedIds.length > 0) {
+        const results = await Promise.allSettled(
+          savedIds.map((id) => careerSaveAPI.getById(id))
+        );
+        const valid = results
+          .map((r, i) => ({ r, id: savedIds[i] }))
+          .filter(({ r }) => r.status === "fulfilled")
+          .map(({ r }) => (r as PromiseFulfilledResult<SubmissionItem>).value);
+        const survivingIds = results
+          .map((r, i) => ({ r, id: savedIds[i] }))
+          .filter(({ r }) => r.status === "fulfilled")
+          .map(({ id }) => id);
+        localStorage.setItem("careerSavedIds", JSON.stringify(survivingIds));
+        setSubmissions(valid);
+      } else {
+        setSubmissions([]);
+      }
 
       try {
         const estimatesData = await estimateAPI.getList(userId);
@@ -122,6 +139,9 @@ export default function CareerPage() {
   const deleteSubmission = async (id: number) => {
     await submissionDeleteAPI.delete(id);
     setSubmissions((prev) => prev.filter((s) => s.id !== id));
+    const raw = localStorage.getItem("careerSavedIds");
+    const ids: number[] = raw ? JSON.parse(raw) : [];
+    localStorage.setItem("careerSavedIds", JSON.stringify(ids.filter((i) => i !== id)));
   };
 
   const deleteEstimate = async (id: number) => {
