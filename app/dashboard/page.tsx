@@ -310,14 +310,18 @@ export default function MarketDashboard() {
           return;
         }
 
-        const result = await benchmarkAPI.get({
-          jobCategoryId: profile.jobCategoryId,
-          experienceLevelId: profile.experienceLevelId ?? undefined,
-          workFormat: latest?.workFormat ?? undefined,
-          userAmount: latest?.amount ?? undefined,
-        });
-
-        setBenchmark(result);
+        try {
+          const result = await benchmarkAPI.get({
+            jobCategoryId: profile.jobCategoryId,
+            experienceLevelId: profile.experienceLevelId ?? undefined,
+            workFormat: latest?.workFormat ?? undefined,
+            userAmount: latest?.amount ?? undefined,
+          });
+          setBenchmark(result);
+        } catch {
+          // 벤치마크 데이터 없거나 서버 오류 시 차트 없이 대시보드 표시
+          setBenchmark(null);
+        }
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "데이터를 불러올 수 없어요."
