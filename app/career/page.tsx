@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Pencil, Trash2 } from "lucide-react";
 import Topbar from "@/components/topbar";
-import { userAPI, submissionDeleteAPI, estimateAPI, careerSaveAPI } from "@/lib/api";
+import { userAPI, submissionDeleteAPI, careerSaveAPI } from "@/lib/api";
 
 interface UserProfile {
   nickname: string;
@@ -119,12 +119,7 @@ export default function CareerPage() {
         setSubmissions([]);
       }
 
-      try {
-        const estimatesData = await estimateAPI.getList(userId);
-        setEstimates(estimatesData ?? []);
-      } catch {
-        setEstimates([]);
-      }
+      setEstimates([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "데이터를 불러올 수 없어요.");
     } finally {
@@ -145,7 +140,6 @@ export default function CareerPage() {
   };
 
   const deleteEstimate = async (id: number) => {
-    await estimateAPI.delete(id);
     setEstimates((prev) => prev.filter((e) => e.id !== id));
   };
 
