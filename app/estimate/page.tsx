@@ -238,6 +238,16 @@ export default function EstimatePage() {
         <EstimateModal
           result={result}
           onClose={() => setShowModal(false)}
+          onSave={() =>
+            estimateAPI.save({
+              experienceLevelId: experienceLevelId!,
+              jobCategoryId: jobCategoryId!,
+              screenCount: Number(screens),
+              uxEngagement: UX_ENGAGEMENT_MAP[workScope as string],
+              platformEnvironment: PLATFORM_ENV_MAP[platform as string],
+              addons: deliverables.map((d) => ADDON_MAP[d]),
+            })
+          }
         />
       )}
     </div>
