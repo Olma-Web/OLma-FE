@@ -44,6 +44,9 @@ export const authAPI = {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
+
+  logout: () =>                                          // ← 추가
+    fetchAPI("/v1/auth/logout", { method: "POST" }),     // ← 추가
 };
 
 // 온보딩 제출
@@ -107,6 +110,19 @@ export const estimateAPI = {
     }).then((res) => {
       if (!res.ok && res.status !== 204) throw new Error("삭제에 실패했습니다.");
     }),
+
+  calculate: (body: {                                                              // ← 추가
+    experienceLevelId: number;                                                    // ← 추가
+    jobCategoryId: number;                                                        // ← 추가
+    screenCount: number;                                                          // ← 추가
+    uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";               // ← 추가
+    platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";            // ← 추가
+    addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];            // ← 추가
+  }) =>                                                                           // ← 추가
+    fetchAPI("/v1/estimates/calculate", {                                         // ← 추가
+      method: "POST",                                                             // ← 추가
+      body: JSON.stringify(body),                                                 // ← 추가
+    }),                                                                           // ← 추가
 };
 
 // 커리어 보관함 저장
