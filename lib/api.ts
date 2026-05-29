@@ -1,4 +1,4 @@
-const BASE_URL = "http://13.124.31.106";
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "";
 
 const ERROR_MESSAGES: Record<string, string> = {
   "nickname already in use": "이미 사용 중인 닉네임이에요.",
