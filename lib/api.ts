@@ -90,7 +90,7 @@ export const submissionDeleteAPI = {
     }),
 };
 
-// 견적서
+// 견적서 보관함
 export const estimateAPI = {
   getList: (userId: number) =>
     fetchAPI(`/v1/users/${userId}/estimates`),
@@ -106,6 +106,25 @@ export const estimateAPI = {
       },
     }).then((res) => {
       if (!res.ok && res.status !== 204) throw new Error("삭제에 실패했습니다.");
+    }),
+};
+
+// 커리어 보관함 저장
+export const careerSaveAPI = {
+  save: (body: {
+    jobCategoryId: number;
+    experienceLevelId: number;
+    userId: number;
+    submissionType: string;
+    workFormat: string;
+    duration?: string;
+    amount: number;
+    amountUnit: string;
+    sessionId: string;
+  }) =>
+    fetchAPI("/v1/submissions", {
+      method: "POST",
+      body: JSON.stringify(body),
     }),
 };
 

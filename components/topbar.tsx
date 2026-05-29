@@ -9,7 +9,7 @@ import UserDropdown from "@/components/ui/UserDropdown";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "시장 단가 탐색" },
-  { href: "/calculator", label: "스마트 견적 계산기" },
+  { href: "/estimate", label: "스마트 견적 계산기" },
   { href: "/community", label: "커뮤니티" },
   { href: "/career", label: "커리어 관리" },
 ] as const;

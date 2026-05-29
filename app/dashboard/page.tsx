@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Topbar from "@/components/topbar";
 import Image from "next/image";
-import { userAPI, benchmarkAPI } from "@/lib/api";
+import { userAPI, benchmarkAPI, careerSaveAPI } from "@/lib/api";
 
 interface DistributionBucket {
   bucket: number;
@@ -37,6 +37,7 @@ interface SubmissionItem {
   amount: number;
   amountUnit: string;
   jobCategoryName: string;
+  submissionType: string;
 }
 
 interface BarData {
@@ -60,29 +61,40 @@ function StatCard({ label, value }: { label: string; value: string }) {
 function Tooltip({
   visible,
   bucket,
+  heightPct,
+  totalN,
 }: {
   visible: boolean;
   bucket?: DistributionBucket;
+  heightPct: number;
+  totalN: number;
 }) {
-  if (!visible) return null;
+  if (!visible || !bucket) return null;
+
+  const pct =
+    totalN > 0
+      ? Math.round((bucket.count / totalN) * 100)
+      : bucket.certRatio != null
+        ? Math.round(bucket.certRatio * 100)
+        : null;
+
   return (
     <div
-      className="absolute left-full z-20 ml-3 top-1/4 w-52 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg text-xs leading-relaxed"
+      className="absolute z-20 left-1/2 -translate-x-1/2 w-48 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg text-xs leading-relaxed pointer-events-none"
+      style={{ bottom: `calc(${heightPct}% + 10px)` }}
       role="tooltip"
     >
-      {/* Arrow pointing left */}
-      <div className="absolute -left-[5px] top-1/2 -translate-y-1/2 h-2 w-2 rotate-45 border-b border-l border-gray-200 bg-white" />
+      {/* Arrow pointing down */}
+      <div className="absolute -bottom-[5px] left-1/2 -translate-x-1/2 h-2 w-2 rotate-45 border-b border-r border-gray-200 bg-white" />
       <p className="font-semibold text-gray-800 mb-0.5">
-        이 구간({bucket ? `${bucket.rangeStart}~${bucket.rangeEnd}만 원` : "-"}) 디자이너 현황
+        이 구간({bucket.rangeStart}~{bucket.rangeEnd}만 원)
       </p>
-      {bucket?.certRatio != null && (
-        <p className="text-gray-600">
-          : 전체의 {Math.round(bucket.certRatio * 100)}%
-        </p>
-      )}
-      {bucket?.certHoldersCount != null && (
-        <p className="text-main100 font-medium">
-          {bucket.certHoldersCount}명이 자격증을 가지고 있어요!
+      <p className="text-gray-600">
+        디자이너 {bucket.count}명{pct != null ? ` · 전체의 ${pct}%` : ""}
+      </p>
+      {bucket.cohortSize != null && bucket.certHoldersCount != null && (
+        <p className="text-main100 font-medium mt-0.5">
+          {bucket.cohortSize}명 중 {bucket.certHoldersCount}명이 자격증 보유
         </p>
       )}
     </div>
@@ -94,11 +106,13 @@ function BarChart({
   yTicks,
   maxValue,
   median,
+  totalN,
 }: {
   data: BarData[];
   yTicks: number[];
   maxValue: number;
   median: number | null;
+  totalN: number;
 }) {
   const initialUserBar = data.find((b) => b.isUser)?.range ?? null;
   const [hoveredBar, setHoveredBar] = useState<string | null>(initialUserBar);
@@ -114,18 +128,18 @@ function BarChart({
           </h2>
           <p className="text-sm text-gray-500 mt-0.5">
             시장의 중간 가격:{" "}
-            <span className="font-semibold text-[#7c6ff7]">
+            <span className="font-semibold text-main100">
               {median != null ? `${median}만 원` : "-"}
             </span>
           </p>
         </div>
         <div className="flex items-center gap-4 text-xs text-gray-600">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-3 rounded-sm bg-[#7c6ff7] opacity-60" />
+            <span className="inline-block h-3 w-3 rounded-sm bg-gradient-to-t from-[#454EFF] to-[#B0C2FF]" />
             시장 데이터
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-3 rounded-sm bg-pink-400" />
+            <span className="inline-block h-3 w-3 rounded-sm bg-gradient-to-t from-pink-300 to-pink-200" />
             내 단가
           </span>
         </div>
@@ -171,12 +185,12 @@ function BarChart({
                   onMouseLeave={() => setHoveredBar(null)}
                 >
                   {/* Tooltip */}
-                  {bar.isUser && (
-                    <Tooltip
-                      visible={isHovered || hoveredBar === bar.range}
-                      bucket={bar.bucket}
-                    />
-                  )}
+                  <Tooltip
+                    visible={isHovered}
+                    bucket={bar.bucket}
+                    heightPct={heightPct}
+                    totalN={totalN}
+                  />
 
                   {/* Dot on top */}
                   {bar.value > 0 && (
@@ -184,7 +198,7 @@ function BarChart({
                       className={`absolute z-10 h-3 w-3 rounded-full bg-white border shadow ${
                         bar.isUser ? "border-pink-400" : "border-main100"
                       }`}
-                      style={{ bottom: `calc(${heightPct}% + 4px)` }}
+                      style={{ bottom: `calc(${heightPct}% - 6px)` }}
                       aria-hidden="true"
                     />
                   )}
@@ -195,7 +209,7 @@ function BarChart({
                       className={`w-10 rounded-t-md ${
                         bar.isUser
                           ? "bg-gradient-to-t from-pink-300 to-pink-200"
-                          : "bg-gradient-to-t from-[#454EFF]/80 to-[#B0C2FF]/60"
+                          : "bg-gradient-to-t from-[#454EFF] to-[#B0C2FF]"
                       } ${isHovered ? "brightness-110" : ""}`}
                       style={{ height: `${heightPct}%` }}
                     />
@@ -236,9 +250,9 @@ function BarChart({
 
       {/* CTA button */}
       <div className="mt-4 flex justify-end">
-        <button className="flex items-center gap-2 rounded-full bg-main100 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-[#6a5ee6]">
+        <Link href="/onboarding" className="flex items-center gap-2 rounded-full bg-main100 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-[#6a5ee6]">
           <span className="text-base">+</span> 새로운 프로젝트 업데이트하기
-        </button>
+        </Link>
       </div>
     </div>
   );
@@ -252,6 +266,7 @@ export default function MarketDashboard() {
   const [latestSubmission, setLatestSubmission] = useState<SubmissionItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   useEffect(() => {
     const load = async () => {
@@ -274,6 +289,7 @@ export default function MarketDashboard() {
         const latest: SubmissionItem | null = submissions?.[0] ?? null;
         setUserProfile(profile);
         setLatestSubmission(latest);
+        if (latest) setSaveStatus("saved");
 
         if (!profile.jobCategoryId) {
           setBenchmark(null);
@@ -299,6 +315,32 @@ export default function MarketDashboard() {
     };
     load();
   }, []);
+
+  const handleSave = async () => {
+    if (saveStatus === "saving" || saveStatus === "saved") return;
+    const userId = typeof window !== "undefined" ? Number(localStorage.getItem("userId")) : null;
+    if (!userId || !userProfile || !latestSubmission) return;
+
+    setSaveStatus("saving");
+    try {
+      await careerSaveAPI.save({
+        jobCategoryId: userProfile.jobCategoryId,
+        experienceLevelId: userProfile.experienceLevelId,
+        userId,
+        submissionType: latestSubmission.submissionType,
+        workFormat: latestSubmission.workFormat,
+        amount: latestSubmission.amount,
+        amountUnit: latestSubmission.amountUnit,
+        sessionId: crypto.randomUUID(),
+      });
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "저장에 실패했습니다.";
+      alert(msg);
+      setSaveStatus("idle");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -345,7 +387,11 @@ export default function MarketDashboard() {
   const yTicks = Array.from({ length: 6 }, (_, i) => Math.round((yMax / 5) * i));
 
   const userBucket = barData.find((b) => b.isUser);
-  const userPosition = userBucket ? `${userBucket.range}만원` : "-";
+  const userPosition = userBucket
+    ? `${userBucket.range}만원`
+    : latestSubmission
+      ? `${latestSubmission.amount}만원`
+      : "-";
 
   const percentile =
     benchmark?.userPercentile != null
@@ -373,9 +419,15 @@ export default function MarketDashboard() {
               </span>
             ))}
           </div>
-          <button className="flex items-center gap-1.5 rounded-lg border border-main100 px-4 py-2 text-sm font-semibold text-main100 transition hover:bg-main25">
+          <button
+            onClick={handleSave}
+            disabled={saveStatus === "saving" || saveStatus === "saved"}
+            className="flex items-center gap-1.5 rounded-lg border border-main100 px-4 py-2 text-sm font-semibold text-main100 transition hover:bg-main25 disabled:cursor-not-allowed disabled:opacity-50"
+          >
             <Image src="/save.svg" alt="" width={15} height={20} />
-            커리어 보관함에 저장
+            {saveStatus === "saving" && "저장 중..."}
+            {saveStatus === "saved" && "저장되었습니다 ✓"}
+            {saveStatus === "idle" && "커리어 보관함에 저장"}
           </button>
         </div>
 
@@ -408,22 +460,25 @@ export default function MarketDashboard() {
             yTicks={yTicks}
             maxValue={yMax}
             median={benchmark?.median ?? null}
+            totalN={benchmark?.n ?? 0}
           />
         </div>
 
         {/* Bottom CTA */}
-        <div className="mt-6 flex flex-col items-start justify-between gap-4 rounded-2xl bg-[#ede9fe] px-6 py-6 sm:flex-row sm:items-center">
+        <div className="mt-6 flex flex-col items-start justify-between gap-4 rounded-2xl bg-[#E5E5E5]/60 px-6 py-6 sm:flex-row sm:items-center">
           <div>
-            <h3 className="text-lg font-bold text-[#5b4fcf]">
+            <h3 className="text-lg font-bold text-main100">
               내 건별 단가 시장 위치를 확인하셨나요?
             </h3>
             <p className="mt-1 text-sm text-gray-600">
               이제 이 기준으로 클라이언트에게 보낼 세부 견적을 뽑아보세요!
             </p>
           </div>
-          <button className="shrink-0 rounded-full border-2 border-[#7c6ff7] px-6 py-3 text-sm font-semibold text-[#7c6ff7] transition hover:bg-[#7c6ff7] hover:text-white">
+          <Link
+            href="/estimate"
+            className="shrink-0 rounded-xl border-1 border-main100 px-10 py-3 text-sm font-semibold text-main100 transition hover:bg-main100 hover:text-white">
             내 스펙으로 실전 견적 계산하기
-          </button>
+          </Link>
         </div>
       </main>
     </div>

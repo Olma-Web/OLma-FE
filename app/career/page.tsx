@@ -156,7 +156,7 @@ export default function CareerPage() {
     : "자격증 없음";
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 font-sans">
+    <div className="flex min-h-screen flex-col bg-white font-sans">
       <Topbar />
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 md:px-6">
@@ -178,18 +178,25 @@ export default function CareerPage() {
             </div>
             <Link
               href="/onboarding"
-              className="flex items-center gap-1.5 rounded-lg border border-[#7c6ff7] px-3 py-1.5 text-xs font-semibold text-[#7c6ff7] transition hover:bg-[#f3f1ff]"
+              className="flex items-center gap-1.5 rounded-lg border border-main100 px-3 py-1.5 text-xs font-semibold text-main100 transition hover:bg-[#f3f1ff]"
             >
               <Pencil size={12} />
               스펙 업데이트
             </Link>
           </div>
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
-            <span>{profile?.jobCategoryName ?? "직군 미설정"}</span>
-            <span className="text-gray-300">|</span>
-            <span>{profile?.experienceLevelLabel ?? "경력 미설정"}</span>
-            <span className="text-gray-300">|</span>
-            <span>{certLabel}</span>
+          <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            <span className="flex items-center gap-1.5">
+              <span className="text-gray-500">직군</span>
+              <span className="font-bold text-gray-900">{profile?.jobCategoryName ?? "미설정"}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-gray-500">경력</span>
+              <span className="font-bold text-gray-900">{profile?.experienceLevelLabel ?? "미설정"}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-gray-500">자격증</span>
+              <span className="font-bold text-gray-900">{certLabel}</span>
+            </span>
           </div>
         </div>
 
@@ -199,7 +206,7 @@ export default function CareerPage() {
             onClick={() => setTab("rates")}
             className={`px-4 py-2.5 text-sm font-semibold transition-colors ${
               tab === "rates"
-                ? "border-b-2 border-[#7c6ff7] text-[#7c6ff7]"
+                ? "border-b-2 border-main100 text-main100"
                 : "text-gray-400 hover:text-gray-600"
             }`}
           >
@@ -209,7 +216,7 @@ export default function CareerPage() {
             onClick={() => setTab("estimates")}
             className={`px-4 py-2.5 text-sm font-semibold transition-colors ${
               tab === "estimates"
-                ? "border-b-2 border-[#7c6ff7] text-[#7c6ff7]"
+                ? "border-b-2 border-main100 text-main100"
                 : "text-gray-400 hover:text-gray-600"
             }`}
           >
@@ -222,7 +229,7 @@ export default function CareerPage() {
           <div className="mt-6">
             <div className="mb-4 flex items-center gap-2">
               <h2 className="text-base font-bold text-gray-900">단가 기록</h2>
-              <span className="rounded-full bg-[#ede9fe] px-2.5 py-0.5 text-xs font-semibold text-[#7c6ff7]">
+              <span className="rounded-sm bg-sub50 px-2 py-0.5 text-xs font-semibold text-sub175">
                 실제 데이터
               </span>
             </div>
@@ -232,7 +239,7 @@ export default function CareerPage() {
                 <p className="text-sm text-gray-400">아직 등록된 단가 기록이 없습니다.</p>
                 <Link
                   href="/onboarding"
-                  className="mt-4 inline-block rounded-full bg-[#7c6ff7] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#6a5ee6]"
+                  className="mt-4 inline-block rounded-xl bg-main100 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-main75"
                 >
                   단가 등록하기
                 </Link>
@@ -242,28 +249,35 @@ export default function CareerPage() {
                 {submissions.map((item) => (
                   <li
                     key={item.id}
-                    className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm"
+                    className="rounded-2xl bg-[#F5F5F5] px-5 py-6"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex flex-col gap-2">
-                        <p className="text-xs text-gray-400">{timeAgo(item.createdAt)}</p>
-                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-gray-700">
-                          <span>{item.jobCategoryName}</span>
-                          <span className="text-gray-300">/</span>
-                          <span>{item.experienceLevelLabel}</span>
-                          <span className="text-gray-300">/</span>
-                          <span>{workFormatLabel(item.workFormat)}</span>
-                          <span className="text-gray-300">/</span>
-                          <span>{amountUnitLabel(item.amountUnit)}</span>
-                        </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="text-xs text-gray-400 shrink-0">{timeAgo(item.createdAt)}</span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-gray-500">직군</span>
+                          <span className="font-bold text-gray-900">{item.jobCategoryName}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-gray-500">경력</span>
+                          <span className="font-bold text-gray-900">{item.experienceLevelLabel}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-gray-500">근무</span>
+                          <span className="font-bold text-gray-900">{workFormatLabel(item.workFormat)}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-gray-500">계약</span>
+                          <span className="font-bold text-gray-900">{amountUnitLabel(item.amountUnit)}</span>
+                        </span>
                       </div>
-                      <div className="flex shrink-0 flex-col items-end gap-2">
-                        <p className="text-base font-bold text-[#7c6ff7]">
+                      <div className="flex shrink-0 items-center gap-5">
+                        <p className="text-base font-bold text-main100">
                           {formatAmount(item.amount)}
                         </p>
                         <button
                           onClick={() => deleteSubmission(item.id)}
-                          className="flex items-center gap-1 rounded-lg border border-[#7c6ff7] px-2.5 py-1 text-xs text-[#7c6ff7] transition hover:bg-[#f3f1ff]"
+                          className="flex items-center gap-1 rounded-lg border border-main100 px-2.5 py-1.5 text-xs text-main100 transition hover:bg-[#f3f1ff]"
                         >
                           <Trash2 size={12} />
                           삭제하기
@@ -289,7 +303,7 @@ export default function CareerPage() {
                 <p className="text-sm text-gray-400">아직 저장된 견적서가 없습니다.</p>
                 <Link
                   href="/estimate"
-                  className="mt-4 inline-block rounded-full bg-[#7c6ff7] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#6a5ee6]"
+                  className="mt-4 inline-block rounded-xl bg-main100 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-main75"
                 >
                   내 스펙으로 실전 견적 계산하기
                 </Link>
@@ -326,9 +340,7 @@ export default function CareerPage() {
                       <div className="mt-4 flex flex-col gap-1.5 rounded-xl bg-gray-50 px-4 py-3 text-xs text-gray-600">
                         <div className="flex justify-between">
                           <span>기본 작업비</span>
-                          <span>
-                            {est.screenCount}회 × {est.baseAmount}만 원 = {baseWork}만 원
-                          </span>
+                          <span>{est.screenCount}회 × {est.baseAmount}만 원 = {baseWork}만 원</span>
                         </div>
                         <div className="flex justify-between">
                           <span>UX 기획 가이드</span>
