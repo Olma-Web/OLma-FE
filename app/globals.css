@@ -3,6 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --hero-accent: #454eff;
+  --home-background-image: url("/home_background.png");
+  --home-background-position: center bottom;
 }
 
 @theme inline {
@@ -10,6 +13,31 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* from-hero-accent1 / to-hero-accent2 그라데이션 정류용 */
+  --color-hero-accent1: #0038ee;
+  --color-main25: #E0DDFF;
+  --color-main50: #BBB4FF;
+  --color-main75: #7F72FD;
+  --color-main100: #4938F2;
+  --color-main125: #392BBF;
+  --color-main150: #22188D;
+  --color-titlefont3: #2B2B2B;
+  --color-titlefont2: #1F1F1F;
+  --color-titlefont1: #111111;
+  --color-bodyfont1: #4B4B4B;
+  --color-bodyfont2: #5E5E5E;
+  --color-bodyfont3: #7B7B7B;
+  --color-bodyfont4: #A8A8A8;
+  --color-line1: #D9D9D9;
+  --color-line2: #E8E8E8;
+  --color-bg1: #EEEEEE;
+  --color-bg2: #F7F7F8;
+  --color-sub50: #DFEEFF;
+  --color-sub75: #BADEFF;
+  --color-sub100: #9ED0FF;
+  --color-sub125: #6eb9FF;
+  --color-sub150: #2F9AFF;
+  --color-sub175: #0075E3;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,4 +51,28 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Dev (Turbopack)에서 @theme만으로는 bg-charcoal 규칙이 안 생기는 경우가 있어 명시 */
+@layer utilities {
+  .bg-charcoal {
+    background-color: #3a3a3a;
+  }
+  .text-charcoal {
+    color: #3a3a3a;
+  }
+  .border-charcoal {
+    border-color: #3a3a3a;
+  }
+
+  .bg-home-background-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-color: #e8eef5;
+    background-image: var(--home-background-image);
+    background-size: cover;
+    background-position: var(--home-background-position);
+    background-repeat: no-repeat;
+  }
 }

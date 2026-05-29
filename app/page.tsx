@@ -1,65 +1,56 @@
-import Image from "next/image";
+import Link from "next/link";
+import Topbar from "@/components/topbar";
+
+const AVATAR_LABELS = ["A", "B", "C", "D", "E"] as const;
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="relative isolate flex min-h-screen w-full flex-1 flex-col font-sans">
+      <div className="bg-home-background-layer pointer-events-none" aria-hidden />
+      <div className="relative z-10 flex min-h-screen flex-col">
+        <Topbar />
+        <main className="flex flex-1 flex-col items-center justify-center px-4 pb-24 pt-6 md:px-8 md:pb-32 md:pt-10">
+          <p className="mb-5 max-w-2xl text-center text-sm leading-relaxed text-neutral-600 md:mb-6 md:text-[15px]">
+            정보 비대칭 해소부터 실전 견적 계산까지, Olma와 함께!
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+          <h1 className="mb-9 max-w-[min(100%,24rem)] text-center text-[1.65rem] font-bold leading-snug tracking-tight text-neutral-900 sm:max-w-2xl sm:text-3xl md:mb-10 md:max-w-4xl md:text-4xl lg:text-[2.65rem] lg:leading-[1.25]">
+            나의{" "}
+            <span className="inline-block bg-gradient-to-r from-hero-accent1 to-main50 bg-clip-text text-transparent">
+              진짜 시장 가치,
+            </span>
+            <br />
+            궁금하지 않으신가요?
+          </h1>
+
+          <Link
+            href="#"
+            className="mb-11 inline-flex items-center gap-2 rounded-xl bg-main100 px-15 py-3.5 text-[15px] font-semibold text-white shadow-[0_12px_32px_-8px_rgba(69,78,255,0.45)] transition hover:brightness-105"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+            내 단가 분석하기
+            <span aria-hidden className="translate-y-px items-center">
+              {">"}
+            </span>
+          </Link>
+
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-5">
+            <div className="flex -space-x-2.5" aria-hidden>
+              {AVATAR_LABELS.map((label) => (
+                <div
+                  key={label}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-slate-100 to-slate-200 text-xs font-bold text-slate-500 shadow-sm ring-2 ring-white md:h-11 md:w-11"
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-sm text-neutral-600 md:text-[15px]">
+              <span className="font-semibold text-neutral-900">5,000+</span>{" "}
+              디자이너가 이미 분석 완료
+            </p>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
