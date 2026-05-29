@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { userAPI } from "@/lib/api";
+import UserDropdown from "@/components/ui/UserDropdown";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "시장 단가 탐색" },
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
 
 export default function Topbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [nickname, setNickname] = useState("User");
 
@@ -29,21 +31,24 @@ export default function Topbar() {
     const userId = Number(userIdRaw);
     if (Number.isNaN(userId)) return;
 
-    // Optimistically mark as logged in while fetching
     setIsLoggedIn(true);
 
     userAPI
       .getProfile(userId)
       .then((data) => {
-        if (data?.nickname) {
-          setNickname(data.nickname);
-        }
+        if (data?.nickname) setNickname(data.nickname);
       })
       .catch(() => {
-        // Fetch failed — fall back to showing login/signup
         setIsLoggedIn(false);
       });
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userId");
+    setIsLoggedIn(false);
+    router.push("/");
+  };
 
   return (
     <header className="relative flex min-h-14 items-center bg-charcoal px-4 py-3 md:min-h-16 md:px-8">
@@ -86,14 +91,7 @@ export default function Topbar() {
 
       <div className="relative z-10 ml-auto flex items-center gap-2">
         {isLoggedIn ? (
-          <>
-            <div
-              className="h-8 w-8 rounded-full bg-gradient-to-br from-slate-300 to-slate-400"
-              aria-label="사용자 아바타"
-              role="img"
-            />
-            <span className="text-sm text-white">{nickname}</span>
-          </>
+          <UserDropdown nickname={nickname} onLogout={handleLogout} />
         ) : (
           <>
             <Link
