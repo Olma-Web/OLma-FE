@@ -16,6 +16,7 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
+    credentials: "omit",
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -82,6 +83,7 @@ export const submissionDeleteAPI = {
   delete: (submissionId: number) =>
     fetch(`${BASE_URL}/v1/submissions/${submissionId}`, {
       method: "DELETE",
+      credentials: "omit",
       headers: {
         "Content-Type": "application/json",
         ...(typeof window !== "undefined" && localStorage.getItem("token")
@@ -101,6 +103,7 @@ export const estimateAPI = {
   delete: (estimateId: number) =>
     fetch(`${BASE_URL}/v1/estimates/${estimateId}`, {
       method: "DELETE",
+      credentials: "omit",
       headers: {
         "Content-Type": "application/json",
         ...(typeof window !== "undefined" && localStorage.getItem("token")
