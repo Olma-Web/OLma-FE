@@ -50,58 +50,40 @@ export default function SettingsPage() {
       });
   }, [router]);
 
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setToast({
-        message: "모든 필드를 입력해주세요",
-        type: "error",
-      });
+      showToast("모든 필드를 입력해주세요", "error");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setToast({
-        message: "새 비밀번호가 일치하지 않습니다",
-        type: "error",
-      });
+      showToast("새 비밀번호가 일치하지 않습니다", "error");
       return;
     }
 
     setIsLoading(true);
     try {
-      // API 호출
-      const response = await fetch("/api/auth/change-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword,
-        }),
+      await userAPI.changePassword({
+        currentPassword,
+        newPassword,
       });
 
-      if (response.ok) {
-        setToast({
-          message: "비밀번호가 성공적으로 변경되었습니다",
-          type: "success",
-        });
-        setCurrentPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-      } else {
-        setToast({
-          message: "비밀번호 변경에 실패했습니다",
-          type: "error",
-        });
-      }
+      showToast("비밀번호가 성공적으로 변경되었습니다", "success");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (error) {
-      setToast({
-        message: "오류가 발생했습니다",
-        type: "error",
-      });
+      showToast(
+        error instanceof Error ? error.message : "비밀번호 변경에 실패했습니다",
+        "error"
+      );
     } finally {
       setIsLoading(false);
     }
