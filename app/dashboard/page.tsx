@@ -420,9 +420,16 @@ export default function MarketDashboard() {
       ? `${latestSubmission.amount}만원`
       : "-";
 
+  const getPercentileText = (percentile: number): string => {
+    if (percentile >= 75) return "상위 0~25%";
+    if (percentile >= 50) return "상위 26~50%";
+    if (percentile >= 25) return "하위 26~50%";
+    return "하위 0~25%";
+  };
+
   const percentile =
     benchmark?.userPercentile != null
-      ? `하위 ${benchmark.userPercentile}%`
+      ? getPercentileText(benchmark.userPercentile)
       : "-";
 
   // ── Render ──────────────────────────────────────────────────────────────────
