@@ -89,7 +89,7 @@ export default function EstimateModal({ result, onClose, onSave }: Props) {
             className="flex-1 rounded-2xl bg-gradient-to-r from-main100 to-sub175 py-3 text-sm font-semibold text-white hover:brightness-105 transition-all cursor-pointer disabled:cursor-default disabled:opacity-70"
           >
             {saveStatus === "saving" && "저장 중..."}
-            {saveStatus === "saved" && "저장되었습니다 ✓"}
+            {saveStatus === "saved" && "저장되었습니다"}
             {saveStatus === "error" && "저장 실패"}
             {saveStatus === "idle" && "내 보관함에 저장하기"}
           </button>
