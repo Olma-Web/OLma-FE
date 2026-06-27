@@ -29,6 +29,11 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
     throw new Error(translateError(err.message));
   }
 
+  // 204 No Content는 응답 본문이 없음
+  if (res.status === 204) {
+    return null;
+  }
+
   return res.json();
 }
 
@@ -73,6 +78,15 @@ export const userAPI = {
     certificateTypeIds?: number[];
   }) =>
     fetchAPI(`/v1/users/${userId}/profile`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
+  changePassword: (body: {
+    currentPassword: string;
+    newPassword: string;
+  }) =>
+    fetchAPI("/v1/users/me/password", {
       method: "PUT",
       body: JSON.stringify(body),
     }),
