@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import html2canvas from "html2canvas-pro";
 import { type EstimateResult } from "@/lib/estimate/constants";
 
 const toMan = (won: number) => Math.round(won / 10000);
@@ -37,6 +36,7 @@ export default function EstimateModal({ result, nickname, onClose, onSave }: Pro
 
   const handleImageSave = async () => {
     if (!modalRef.current) return;
+    const html2canvas = (await import("html2canvas-pro")).default;
     const canvas = await html2canvas(modalRef.current, { scale: 2 });
     const link = document.createElement("a");
     link.download = "견적서.png";
