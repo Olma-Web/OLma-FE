@@ -47,6 +47,7 @@ export default function EstimatePage() {
   const [spec, setSpec] = useState({ jobCategoryName: "", experienceLevelLabel: "" });
   const [jobCategoryId, setJobCategoryId] = useState<number | null>(null);
   const [experienceLevelId, setExperienceLevelId] = useState<number | null>(null);
+  const [projectName, setProjectName] = useState("");
 
   useEffect(() => {
     const userId = Number(localStorage.getItem("userId"));
@@ -238,7 +239,9 @@ export default function EstimatePage() {
         <EstimateModal
           result={result}
           onClose={() => setShowModal(false)}
-          onSave={() =>
+          projectName={projectName}
+          onProjectNameChange={setProjectName}
+          onSave={(name) =>
             estimateAPI.save({
               experienceLevelId: experienceLevelId!,
               jobCategoryId: jobCategoryId!,
@@ -246,6 +249,7 @@ export default function EstimatePage() {
               uxEngagement: UX_ENGAGEMENT_MAP[workScope as string],
               platformEnvironment: PLATFORM_ENV_MAP[platform as string],
               addons: deliverables.map((d) => ADDON_MAP[d]),
+              projectName: name,
             })
           }
         />

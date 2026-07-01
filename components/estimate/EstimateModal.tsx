@@ -13,11 +13,14 @@ const toMan = (won: number) => Math.round(won / 10000);
 interface Props {
   result: Record<string, unknown>;
   onClose: () => void;
-  onSave: () => Promise<void>;
+  onSave: (projectName?: string) => Promise<void>;
+  projectName?: string;
+  onProjectNameChange?: (name: string) => void;
 }
 
-export default function EstimateModal({ result, onClose, onSave }: Props) {
+export default function EstimateModal({ result, onClose, onSave, projectName = "", onProjectNameChange }: Props) {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [localProjectName, setLocalProjectName] = useState(projectName);
 
   const finalAmount = result.finalAmount as number;
   const screenCount = result.screenCount as number;
@@ -34,7 +37,7 @@ export default function EstimateModal({ result, onClose, onSave }: Props) {
     if (saveStatus === "saving" || saveStatus === "saved") return;
     setSaveStatus("saving");
     try {
-      await onSave();
+      await onSave(localProjectName || undefined);
       setSaveStatus("saved");
     } catch {
       setSaveStatus("error");
@@ -80,6 +83,22 @@ export default function EstimateModal({ result, onClose, onSave }: Props) {
               <span>+{toMan(step4AddonFee).toLocaleString()}만 원 (+{addonPercent}%)</span>
             </div>
           )}
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            프로젝트명
+          </label>
+          <input
+            type="text"
+            value={localProjectName}
+            onChange={(e) => {
+              setLocalProjectName(e.target.value);
+              onProjectNameChange?.(e.target.value);
+            }}
+            placeholder="예: 2024년 Q1 프로젝트"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-main100 focus:outline-none"
+          />
         </div>
 
         <div className="flex gap-3">
