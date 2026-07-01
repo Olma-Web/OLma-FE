@@ -292,8 +292,6 @@ export default function EstimatePage() {
           result={result}
           nickname={nickname}
           onClose={() => setShowModal(false)}
-          projectName={projectName}
-          onProjectNameChange={setProjectName}
           onSave={(name) =>
             estimateAPI.save({
               experienceLevelId: experienceLevelId!,
