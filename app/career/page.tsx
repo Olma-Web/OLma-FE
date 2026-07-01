@@ -22,6 +22,7 @@ interface SubmissionItem {
   amount: number;
   amountUnit: string;
   createdAt: string;
+  projectName?: string;
 }
 
 interface EstimateItem {
@@ -35,6 +36,7 @@ interface EstimateItem {
   addonPercent: number;
   finalAmount: number;
   createdAt: string;
+  projectName?: string;
 }
 
 const ADDON_LABELS: Record<string, string> = {
@@ -275,35 +277,42 @@ export default function CareerPage() {
                 {submissions.map((item) => (
                   <li
                     key={item.id}
-                    className="rounded-2xl bg-[#F5F5F5] px-5 py-6"
+                    className="rounded-2xl bg-[#F5F5F5] px-6 py-5"
                   >
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="text-xs text-gray-400 shrink-0">{timeAgo(item.createdAt)}</span>
-                        <span className="flex items-center gap-1">
-                          <span className="text-gray-500">직군</span>
-                          <span className="font-bold text-gray-900">{item.jobCategoryName}</span>
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="text-gray-500">경력</span>
-                          <span className="font-bold text-gray-900">{item.experienceLevelLabel}</span>
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="text-gray-500">근무</span>
-                          <span className="font-bold text-gray-900">{workFormatLabel(item.workFormat)}</span>
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="text-gray-500">계약</span>
-                          <span className="font-bold text-gray-900">{amountUnitLabel(item.amountUnit)}</span>
-                        </span>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex flex-1 flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-bold text-main100">
+                            {item.projectName || "프로젝트명 미설정"}
+                          </span>
+                          <span className="text-xs text-gray-400">{timeAgo(item.createdAt)}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="flex items-center gap-1">
+                            <span className="text-gray-500">직군</span>
+                            <span className="font-bold text-gray-900">{item.jobCategoryName}</span>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="text-gray-500">경력</span>
+                            <span className="font-bold text-gray-900">{item.experienceLevelLabel}</span>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="text-gray-500">근무</span>
+                            <span className="font-bold text-gray-900">{workFormatLabel(item.workFormat)}</span>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="text-gray-500">계약</span>
+                            <span className="font-bold text-gray-900">{amountUnitLabel(item.amountUnit)}</span>
+                          </span>
+                        </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-5">
-                        <p className="text-base font-bold text-main100">
+                        <p className="text-base font-bold text-main100 whitespace-nowrap">
                           {formatAmount(item.amount)}
                         </p>
                         <button
                           onClick={() => deleteSubmission(item.id)}
-                          className="flex items-center gap-1 rounded-lg border border-main100 px-2.5 py-1.5 text-xs text-main100 transition hover:bg-[#f3f1ff]"
+                          className="flex items-center gap-1 rounded-lg border border-main100 px-2.5 py-1.5 text-xs text-main100 transition hover:bg-[#f3f1ff] shrink-0"
                         >
                           <Trash2 size={12} />
                           삭제하기
@@ -335,71 +344,57 @@ export default function CareerPage() {
                 </Link>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <ul className="flex flex-col gap-3">
                 {estimates.map((est) => {
                   // finalAmount는 원(₩) 단위 → 만원 단위로 변환
                   const toMan = (won: number) => Math.round(won / 10000);
-                  const baseWon = Math.round(est.finalAmount / (est.uxMultiplier * est.platformMultiplier * (1 + est.addonPercent / 100)));
-                  const basePerScreenMan = toMan(Math.round(baseWon / est.screenCount));
-                  const baseMan = toMan(baseWon);
-                  const afterUxMan = Math.round(baseMan * est.uxMultiplier);
-                  const afterPlatformMan = Math.round(afterUxMan * est.platformMultiplier);
-                  const addonAmountMan = Math.round(afterPlatformMan * (est.addonPercent / 100));
                   const finalMan = toMan(est.finalAmount);
 
                   return (
-                    <div
+                    <li
                       key={est.id}
-                      className="rounded-2xl bg-bg2 px-5 py-5 shadow-sm"
+                      className="rounded-2xl bg-[#F5F5F5] px-6 py-5"
                     >
-                      {/* 헤더 */}
-                      <div className="flex items-center justify-between gap-2 mb-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-gray-900">{est.jobCategoryName}</span>
-                          <span className="text-xs text-gray-400">{timeAgo(est.createdAt)}</span>
-                        </div>
-                        <button
-                          onClick={() => deleteEstimate(est.id)}
-                          className="flex shrink-0 items-center gap-1 rounded-lg border border-main100 px-2.5 py-1 text-xs text-main100 transition hover:bg-[#f3f1ff]"
-                        >
-                          <Trash2 size={12} />
-                          삭제하기
-                        </button>
-                      </div>
-
-                      {/* 항목 목록 */}
-                      <div className="flex flex-col text-sm text-body1">
-                        <div className="flex justify-between py-3 border-b border-line2">
-                          <span>기본 작업비</span>
-                          <span>{est.screenCount}화면 x {basePerScreenMan}만 원 = {baseMan}만 원</span>
-                        </div>
-                        <div className="flex justify-between py-3 border-b border-gray-100">
-                          <span>UX 기획 관여도</span>
-                          <span>x{est.uxMultiplier} = {afterUxMan}만 원</span>
-                        </div>
-                        <div className={`flex justify-between py-3 ${est.addons.length > 0 ? "border-b border-gray-100" : ""}`}>
-                          <span>플랫폼 배수</span>
-                          <span>x{est.platformMultiplier} = {afterPlatformMan}만 원</span>
-                        </div>
-                        {est.addons.map((addon, i) => (
-                          <div key={addon} className={`flex justify-between py-3 ${i < est.addons.length - 1 ? "border-b border-gray-100" : ""}`}>
-                            <span>{ADDON_LABELS[addon] ?? addon}</span>
-                            <span>+{addonAmountMan}만 원 (+{est.addonPercent}%)</span>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex flex-1 flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-bold text-main100">
+                              {est.projectName || "프로젝트명 미설정"}
+                            </span>
+                            <span className="text-xs text-gray-400">{timeAgo(est.createdAt)}</span>
                           </div>
-                        ))}
+                          <div className="flex items-center gap-4 text-sm">
+                            <span className="flex items-center gap-1">
+                              <span className="text-gray-500">직군</span>
+                              <span className="font-bold text-gray-900">{est.jobCategoryName}</span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="text-gray-500">화면</span>
+                              <span className="font-bold text-gray-900">{est.screenCount}개</span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="text-gray-500">경력</span>
+                              <span className="font-bold text-gray-900">{est.experienceLevelLabel}</span>
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-5">
+                          <p className="text-base font-bold text-main100 whitespace-nowrap">
+                            ₩{finalMan.toLocaleString()}만 원
+                          </p>
+                          <button
+                            onClick={() => deleteEstimate(est.id)}
+                            className="flex items-center gap-1 rounded-lg border border-main100 px-2.5 py-1.5 text-xs text-main100 transition hover:bg-[#f3f1ff] shrink-0"
+                          >
+                            <Trash2 size={12} />
+                            삭제하기
+                          </button>
+                        </div>
                       </div>
-
-                      {/* 최종 금액 */}
-                      <div className="mt-2 flex items-center justify-between pt-3">
-                        <span className="text-sm font-semibold text-main100">권장 최소 방어 견적</span>
-                        <span className="text-lg font-bold text-main100">
-                          ₩{finalMan.toLocaleString()}만 원
-                        </span>
-                      </div>
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             )}
           </div>
         )}

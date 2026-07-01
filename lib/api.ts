@@ -148,6 +148,7 @@ export const estimateAPI = {
     uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";
     platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
     addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];
+    projectName?: string;
   }) =>
     fetchAPI("/v1/estimates", {
       method: "POST",
@@ -167,6 +168,7 @@ export const careerSaveAPI = {
     amount: number;
     amountUnit: string;
     sessionId: string;
+    projectName?: string;
   }) =>
     fetchAPI("/v1/submissions", {
       method: "POST",

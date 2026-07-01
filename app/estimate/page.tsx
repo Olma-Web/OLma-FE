@@ -292,7 +292,7 @@ export default function EstimatePage() {
           result={result}
           nickname={nickname}
           onClose={() => setShowModal(false)}
-          onSave={() =>
+          onSave={(name) =>
             estimateAPI.save({
               experienceLevelId: experienceLevelId!,
               jobCategoryId: jobCategoryId!,
@@ -300,6 +300,7 @@ export default function EstimatePage() {
               uxEngagement: UX_ENGAGEMENT_MAP[workScope as string],
               platformEnvironment: PLATFORM_ENV_MAP[platform as string],
               addons: deliverables.map((d) => ADDON_MAP[d]),
+              projectName: name,
             })
           }
         />

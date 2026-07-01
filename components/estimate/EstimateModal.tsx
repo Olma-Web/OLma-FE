@@ -1,20 +1,26 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { type EstimateResult } from "@/lib/estimate/constants";
 
 const toMan = (won: number) => Math.round(won / 10000);
+
+const ADDON_LABEL: Record<string, string> = {
+  "화면 프로토타이핑": "화면 프로토타이핑",
+  "개발자용 디자인 시스템 구축": "개발자용 디자인 시스템 구축",
+  "Figma 등 원본 소스 전송": "Figma 등 원본 소스 전송",
+};
 
 interface Props {
   result: EstimateResult;
   nickname: string;
   onClose: () => void;
-  onSave: () => Promise<void>;
+  onSave: (projectName?: string) => Promise<void>;
 }
 
 export default function EstimateModal({ result, nickname, onClose, onSave }: Props) {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const modalRef = useRef<HTMLDivElement>(null);
+  const [projectName, setProjectName] = useState("");
 
   const {
     finalAmount, screenCount, baseRatePerScreen, step1BasicFee,
@@ -26,7 +32,7 @@ export default function EstimateModal({ result, nickname, onClose, onSave }: Pro
     if (saveStatus === "saving" || saveStatus === "saved") return;
     setSaveStatus("saving");
     try {
-      await onSave();
+      await onSave(projectName || undefined);
       setSaveStatus("saved");
     } catch {
       setSaveStatus("error");
@@ -34,19 +40,9 @@ export default function EstimateModal({ result, nickname, onClose, onSave }: Pro
     }
   };
 
-  const handleImageSave = async () => {
-    if (!modalRef.current) return;
-    const html2canvas = (await import("html2canvas-pro")).default;
-    const canvas = await html2canvas(modalRef.current, { scale: 2 });
-    const link = document.createElement("a");
-    link.download = "견적서.png";
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div ref={modalRef} className="w-full max-w-xl rounded-2xl bg-white px-8 py-8 shadow-xl">
+      <div className="w-full max-w-xl rounded-2xl bg-white px-8 py-8 shadow-xl">
 
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-bold text-titlefont1">
@@ -78,10 +74,23 @@ export default function EstimateModal({ result, nickname, onClose, onSave }: Pro
           </div>
           {addonPercent > 0 && (
             <div className="flex justify-between py-3">
-              <span>{addons.join(", ")}</span>
+              <span>{(addons as string[]).map((a) => ADDON_LABEL[a] || a).join(", ")}</span>
               <span>+{toMan(step4AddonFee).toLocaleString()}만 원 (+{addonPercent}%)</span>
             </div>
           )}
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            프로젝트명
+          </label>
+          <input
+            type="text"
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            placeholder="예: 2024년 Q1 프로젝트"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-main100 focus:outline-none"
+          />
         </div>
 
         <div className="flex gap-3">
@@ -96,8 +105,8 @@ export default function EstimateModal({ result, nickname, onClose, onSave }: Pro
             {saveStatus === "idle" && "내 보관함에 저장하기"}
           </button>
           <button
-            onClick={handleImageSave}
             className="flex-1 rounded-2xl border border-main100 py-3 text-sm font-semibold text-main100 hover:bg-main25 transition-all cursor-pointer"
+            disabled
           >
             이미지로 저장하기
           </button>
