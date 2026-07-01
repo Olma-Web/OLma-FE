@@ -24,3 +24,10 @@ export const durationMap: Record<string, string> = {
   "2~3개월": "2~3개월",
   "3개월 이상": "3개월 이상",
 };
+
+// 자격증 선택 → certificate_types 테이블 ID (V8 migration 기준)
+export const certificateMap: Record<string, number> = {
+  "웹디자인기능사": 1,
+  "시각디자인·산업기사": 2,
+  "기타 자격증": 3,
+};

@@ -1,9 +1,25 @@
-import Link from "next/link";
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Topbar from "@/components/topbar";
 
 const AVATAR_LABELS = ["A", "B", "C", "D", "E"] as const;
 
 export default function Home() {
+  const router = useRouter();
+  const [toast, setToast] = useState(false);
+
+  const handleAnalyze = () => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      setToast(true);
+      setTimeout(() => setToast(false), 2500);
+      return;
+    }
+    router.push("/onboarding");
+  };
+
   return (
     <div className="relative isolate flex min-h-screen w-full flex-1 flex-col font-sans">
       <div className="bg-home-background-layer pointer-events-none" aria-hidden />
@@ -23,15 +39,21 @@ export default function Home() {
             궁금하지 않으신가요?
           </h1>
 
-          <Link
-            href="#"
+          {toast && (
+            <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-xl bg-gray-900 px-5 py-3 text-sm text-white shadow-lg">
+              로그인 후 이용할 수 있어요
+            </div>
+          )}
+
+          <button
+            onClick={handleAnalyze}
             className="mb-11 inline-flex items-center gap-2 rounded-xl bg-main100 px-15 py-3.5 text-[15px] font-semibold text-white shadow-[0_12px_32px_-8px_rgba(69,78,255,0.45)] transition hover:brightness-105"
           >
             내 단가 분석하기
             <span aria-hidden className="translate-y-px items-center">
               {">"}
             </span>
-          </Link>
+          </button>
 
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-5">
             <div className="flex -space-x-2.5" aria-hidden>

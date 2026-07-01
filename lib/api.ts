@@ -1,4 +1,4 @@
-const BASE_URL = "http://13.124.31.106";
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "";
 
 const ERROR_MESSAGES: Record<string, string> = {
   "nickname already in use": "이미 사용 중인 닉네임이에요.",
@@ -16,6 +16,7 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
+    credentials: "omit",
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -26,6 +27,11 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
   if (!res.ok) {
     const err = await res.json();
     throw new Error(translateError(err.message));
+  }
+
+  // 204 No Content는 응답 본문이 없음
+  if (res.status === 204) {
+    return null;
   }
 
   return res.json();
@@ -44,6 +50,9 @@ export const authAPI = {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
+
+  logout: () =>                                          // ← 추가
+    fetchAPI("/v1/auth/logout", { method: "POST" }),     // ← 추가
 };
 
 // 온보딩 제출
@@ -53,4 +62,137 @@ export const submissionAPI = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+};
+
+// 유저 프로필 및 제출 이력
+export const userAPI = {
+  getProfile: (userId: number) =>
+    fetchAPI(`/v1/users/${userId}`),
+
+  getSubmissions: (userId: number) =>
+    fetchAPI(`/v1/users/${userId}/submissions`),
+
+  updateProfile: (userId: number, body: {
+    jobCategoryId?: number;
+    experienceLevelId?: number;
+    certificateTypeIds?: number[];
+  }) =>
+    fetchAPI(`/v1/users/${userId}/profile`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
+  changePassword: (body: {
+    currentPassword: string;
+    newPassword: string;
+  }) =>
+    fetchAPI("/v1/users/me/password", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+};
+
+// 단가 기록 삭제
+export const submissionDeleteAPI = {
+  delete: (submissionId: number) =>
+    fetch(`${BASE_URL}/v1/submissions/${submissionId}`, {
+      method: "DELETE",
+      credentials: "omit",
+      headers: {
+        "Content-Type": "application/json",
+        ...(typeof window !== "undefined" && localStorage.getItem("token")
+          ? { Authorization: `Bearer ${localStorage.getItem("token")}` }
+          : {}),
+      },
+    }).then((res) => {
+      if (!res.ok && res.status !== 204) throw new Error("삭제에 실패했습니다.");
+    }),
+};
+
+// 견적서 보관함
+export const estimateAPI = {
+  getList: () =>
+    fetchAPI(`/v1/estimates`),
+
+  delete: (estimateId: number) =>
+    fetch(`${BASE_URL}/v1/estimates/${estimateId}`, {
+      method: "DELETE",
+      credentials: "omit",
+      headers: {
+        "Content-Type": "application/json",
+        ...(typeof window !== "undefined" && localStorage.getItem("token")
+          ? { Authorization: `Bearer ${localStorage.getItem("token")}` }
+          : {}),
+      },
+    }).then((res) => {
+      if (!res.ok && res.status !== 204) throw new Error("삭제에 실패했습니다.");
+    }),
+
+  calculate: (body: {
+    experienceLevelId: number;
+    jobCategoryId: number;
+    screenCount: number;
+    uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";
+    platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
+    addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];
+  }) =>
+    fetchAPI("/v1/estimates/calculate", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  save: (body: {
+    experienceLevelId: number;
+    jobCategoryId: number;
+    screenCount: number;
+    uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";
+    platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
+    addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];
+  }) =>
+    fetchAPI("/v1/estimates", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+};
+
+// 커리어 보관함 저장
+export const careerSaveAPI = {
+  save: (body: {
+    jobCategoryId: number;
+    experienceLevelId: number;
+    userId: number;
+    submissionType: string;
+    workFormat: string;
+    duration?: string;
+    amount: number;
+    amountUnit: string;
+    sessionId: string;
+  }) =>
+    fetchAPI("/v1/submissions", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  getById: (id: number) =>
+    fetchAPI(`/v1/submissions/${id}`),
+};
+
+// 벤치마크
+export const benchmarkAPI = {
+  get: (params: {
+    jobCategoryId: number;
+    experienceLevelId?: number;
+    workFormat?: string;
+    userAmount?: number;
+  }) => {
+    if (params.jobCategoryId == null) {
+      return Promise.reject(new Error("jobCategoryId가 없습니다."));
+    }
+    const qs = new URLSearchParams();
+    qs.set("jobCategoryId", String(params.jobCategoryId));
+    if (params.experienceLevelId != null) qs.set("experienceLevelId", String(params.experienceLevelId));
+    if (params.workFormat != null) qs.set("workFormat", params.workFormat);
+    if (params.userAmount != null) qs.set("userAmount", String(params.userAmount));
+    return fetchAPI(`/v1/benchmark?${qs.toString()}`);
+  },
 };

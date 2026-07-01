@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { getSteps } from "@/lib/onboarding/steps";
-import { jobCategoryMap, experienceLevelMap, workFormatMap, durationMap } from "@/lib/onboarding/maps";
-import { submissionAPI } from "@/lib/api";
+import { jobCategoryMap, experienceLevelMap, workFormatMap, durationMap, certificateMap } from "@/lib/onboarding/maps";
+import { submissionAPI, userAPI } from "@/lib/api";
 import Topbar from "@/components/topbar";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -80,7 +80,24 @@ export default function OnboardingPage() {
 
     try {
       await submissionAPI.submit(body);
-      window.location.href = "/";
+
+      // submission 후 user profile에 jobCategory/experienceLevel 저장
+      // (백엔드 submission 저장이 user profile을 자동 업데이트하지 않으므로 별도 호출 필요)
+      const userId = Number(localStorage.getItem("userId"));
+      if (userId) {
+        const selectedCerts = (answers[4] as string[] ?? [])
+          .filter((c) => c !== "없음")
+          .map((c) => certificateMap[c])
+          .filter(Boolean) as number[];
+
+        await userAPI.updateProfile(userId, {
+          jobCategoryId: jobCategoryMap[answers[2] as string],
+          experienceLevelId: experienceLevelMap[answers[3] as string],
+          certificateTypeIds: selectedCerts,
+        });
+      }
+
+      window.location.href = "/dashboard";
     } catch (err) {
       alert(err instanceof Error ? err.message : "서버에 연결할 수 없어요");
       setIsLoading(false);
