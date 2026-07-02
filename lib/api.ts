@@ -11,6 +11,16 @@ function translateError(message: string): string {
   return ERROR_MESSAGES[message.toLowerCase()] ?? message;
 }
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function fetchAPI(endpoint: string, options?: RequestInit) {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
@@ -26,7 +36,7 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
 
   if (!res.ok) {
     const err = await res.json();
-    throw new Error(translateError(err.message));
+    throw new ApiError(translateError(err.message), res.status);
   }
 
   // 204 No Content는 응답 본문이 없음
