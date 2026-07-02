@@ -28,14 +28,14 @@ export default function UserDropdown({ nickname, onLogout }: Props) {
       {showDropdown && (
         <div className="absolute right-0 top-10 w-44 rounded-xl bg-white shadow-lg py-2 z-50">
           <Link
-            href="/user"
+            href="/community"
             className="flex items-center gap-2 px-4 py-2.5 text-sm text-titlefont2 hover:bg-bg2"
             onClick={() => setShowDropdown(false)}
           >
             내가 쓴 글 / 댓글
           </Link>
           <Link
-            href="/settings"
+            href="/career"
             className="flex items-center gap-2 px-4 py-2.5 text-sm text-titlefont2 hover:bg-bg2"
             onClick={() => setShowDropdown(false)}
           >

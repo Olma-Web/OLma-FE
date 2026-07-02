@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { userAPI, ApiError } from "@/lib/api";
+import { userAPI } from "@/lib/api";
 import UserDropdown from "@/components/ui/UserDropdown";
 
 const NAV_ITEMS = [
@@ -44,11 +44,8 @@ export default function Topbar() {
       .then((data) => {
         if (data?.nickname) setNickname(data.nickname);
       })
-      .catch((err) => {
-        // 인증 만료(401)일 때만 로그아웃 처리 - 일시적 서버/네트워크 오류로는 로그인 상태를 풀지 않음
-        if (err instanceof ApiError && err.status === 401) {
-          setIsLoggedIn(false);
-        }
+      .catch(() => {
+        setIsLoggedIn(false);
       });
   }, []);
 

@@ -78,9 +78,6 @@ function Tooltip({
         ? Math.round(bucket.certRatio * 100)
         : null;
 
-  const certPercentage = bucket.certRatio != null ? Math.round(bucket.certRatio * 100) : null;
-  const certPer10 = bucket.certRatio != null ? (bucket.certRatio * 10).toFixed(1) : null;
-
   return (
     <div
       className="absolute z-20 left-1/2 -translate-x-1/2 w-48 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg text-xs leading-relaxed pointer-events-none"
@@ -93,11 +90,11 @@ function Tooltip({
         이 구간({bucket.rangeStart}~{bucket.rangeEnd}만 원)
       </p>
       <p className="text-gray-600">
-        : 전체의 {pct}%
+        디자이너 {bucket.count}명{pct != null ? ` · 전체의 ${pct}%` : ""}
       </p>
       {bucket.cohortSize != null && bucket.certHoldersCount != null && (
         <p className="text-main100 font-medium mt-0.5">
-          {certPercentage != null && `${certPercentage}%의 디자이너가 자격증을 가지고 있어요.`}
+          {bucket.cohortSize}명 중 {bucket.certHoldersCount}명이 자격증 보유
         </p>
       )}
     </div>
@@ -119,7 +116,7 @@ function BarChart({
 }) {
   const initialUserBar = data.find((b) => b.isUser)?.range ?? null;
   const [hoveredBar, setHoveredBar] = useState<string | null>(initialUserBar);
-  const BAR_HEIGHT = 180;
+  const BAR_HEIGHT = 260;
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -405,12 +402,8 @@ export default function MarketDashboard() {
     };
   });
 
-  const rawMax = barData.length > 0 ? Math.max(...barData.map((b) => b.value), 1) : 1;
-  let yMax: number;
-  if (rawMax <= 5) yMax = Math.max(5, Math.ceil(rawMax / 1) * 1);
-  else if (rawMax <= 10) yMax = Math.ceil(rawMax / 2) * 2;
-  else if (rawMax <= 50) yMax = Math.ceil(rawMax / 5) * 5;
-  else yMax = Math.ceil(rawMax / 10) * 10;
+  const rawMax = barData.length > 0 ? Math.max(...barData.map((b) => b.value), 1) : 250;
+  const yMax = Math.ceil(rawMax / 50) * 50;
   const yTicks = Array.from({ length: 6 }, (_, i) => Math.round((yMax / 5) * i));
 
   const userBucket = barData.find((b) => b.isUser);
@@ -420,16 +413,9 @@ export default function MarketDashboard() {
       ? `${latestSubmission.amount}만원`
       : "-";
 
-  const getPercentileText = (percentile: number): string => {
-    if (percentile >= 75) return "상위 0~25%";
-    if (percentile >= 50) return "상위 26~50%";
-    if (percentile >= 25) return "하위 26~50%";
-    return "하위 0~25%";
-  };
-
   const percentile =
     benchmark?.userPercentile != null
-      ? getPercentileText(benchmark.userPercentile)
+      ? `하위 ${benchmark.userPercentile}%`
       : "-";
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -460,7 +446,7 @@ export default function MarketDashboard() {
           >
             <Image src="/save.svg" alt="" width={15} height={20} />
             {saveStatus === "saving" && "저장 중..."}
-            {saveStatus === "saved" && "저장되었습니다"}
+            {saveStatus === "saved" && "저장되었습니다 ✓"}
             {saveStatus === "idle" && "커리어 보관함에 저장"}
           </button>
         </div>

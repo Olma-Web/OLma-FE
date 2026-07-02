@@ -10,7 +10,10 @@ export function PasswordInput({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium text-titlefont1">{label}</label>
+      <label className="text-sm font-medium text-titlefont1">
+        {label}
+        {hint && <span className="text-xs font-normal text-bodyfont4"> {hint}</span>}
+      </label>
       <div className="relative">
         <input
           type="text"
@@ -29,11 +32,7 @@ export function PasswordInput({
           {show ? <EyeOff size={18} /> : <Eye size={18} />}
         </button>
       </div>
-      {error ? (
-        <p className="text-xs text-red-500">{error}</p>
-      ) : (
-        hint && <p className="text-xs text-bodyfont4">{hint}</p>
-      )}
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }
