@@ -63,6 +63,7 @@ export default function SignupPage() {
       const data = await authAPI.signup(form.email, form.password, form.nickname);
       localStorage.setItem("token", data.token);
       localStorage.setItem("userId", String(data.id));
+      localStorage.setItem("nickname", form.nickname);
       window.location.href = "/onboarding";
     } catch (err) {
       alert(err instanceof Error ? err.message : "서버에 연결할 수 없어요");
@@ -105,7 +106,7 @@ export default function SignupPage() {
               {/* 비밀번호 */}
               <PasswordInput
                 label="비밀번호"
-                hint="(영문 + 숫자 + 특수문자 필수, 8자리 이상)"
+                hint="영문, 숫자, 특수문자 조합 8자리 이상"
                 value={form.password}
                 onChange={set("password")}
                 onBlur={() => setErrors((err) => ({ ...err, password: validatePassword(form.password) }))}
@@ -137,7 +138,11 @@ export default function SignupPage() {
                   placeholder="사용할 닉네임을 입력하세요"
                   className={inputClass(errors.nickname)}
                 />
-                {errors.nickname && <p className="text-xs text-red-500">{errors.nickname}</p>}
+                {errors.nickname ? (
+                  <p className="text-xs text-red-500">{errors.nickname}</p>
+                ) : (
+                  <p className="text-xs text-bodyfont4">한글, 영문, 숫자 조합 2자리 이상</p>
+                )}
               </div>
 
               {/* 약관 동의 */}
