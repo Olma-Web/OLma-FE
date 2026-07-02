@@ -11,11 +11,22 @@ function translateError(message: string): string {
   return ERROR_MESSAGES[message.toLowerCase()] ?? message;
 }
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function fetchAPI(endpoint: string, options?: RequestInit) {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
+    credentials: "omit",
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -25,7 +36,12 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
 
   if (!res.ok) {
     const err = await res.json();
-    throw new Error(translateError(err.message));
+    throw new ApiError(translateError(err.message), res.status);
+  }
+
+  // 204 No Content는 응답 본문이 없음
+  if (res.status === 204) {
+    return null;
   }
 
   return res.json();
@@ -75,6 +91,15 @@ export const userAPI = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
+
+  changePassword: (body: {
+    currentPassword: string;
+    newPassword: string;
+  }) =>
+    fetchAPI("/v1/users/me/password", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
 };
 
 // 단가 기록 삭제
@@ -82,6 +107,7 @@ export const submissionDeleteAPI = {
   delete: (submissionId: number) =>
     fetch(`${BASE_URL}/v1/submissions/${submissionId}`, {
       method: "DELETE",
+      credentials: "omit",
       headers: {
         "Content-Type": "application/json",
         ...(typeof window !== "undefined" && localStorage.getItem("token")
@@ -101,6 +127,7 @@ export const estimateAPI = {
   delete: (estimateId: number) =>
     fetch(`${BASE_URL}/v1/estimates/${estimateId}`, {
       method: "DELETE",
+      credentials: "omit",
       headers: {
         "Content-Type": "application/json",
         ...(typeof window !== "undefined" && localStorage.getItem("token")
