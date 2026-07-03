@@ -55,6 +55,7 @@ export default function Topbar() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("userId");
+    localStorage.removeItem("careerSavedIds");
     setIsLoggedIn(false);
     router.push("/");
   };

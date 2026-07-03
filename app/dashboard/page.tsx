@@ -447,8 +447,8 @@ export default function MarketDashboard() {
     <div className="flex min-h-screen flex-col bg-gray-50 font-sans">
       <Topbar />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10 md:px-8">
-        <h1 className="text-2xl font-extrabold text-gray-900 md:text-3xl">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 md:px-6">
+        <h1 className="text-2xl font-extrabold text-gray-900">
           시장 단가 분석 대시보드
         </h1>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">

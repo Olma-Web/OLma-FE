@@ -64,6 +64,7 @@ export default function SignupPage() {
       localStorage.setItem("token", data.token);
       localStorage.setItem("userId", String(data.id));
       localStorage.setItem("nickname", form.nickname);
+      localStorage.removeItem("careerSavedIds");
       window.location.href = "/onboarding";
     } catch (err) {
       alert(err instanceof Error ? err.message : "서버에 연결할 수 없어요");

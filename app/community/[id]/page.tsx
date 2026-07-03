@@ -3,13 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ThumbsUp, MessageCircle, Flag, Send } from "lucide-react";
+import { ChevronLeft, ThumbsUp, MessageCircle, Send } from "lucide-react";
 import Topbar from "@/components/topbar";
-import ReportModal from "@/components/community/ReportModal";
 import { communityAPI } from "@/lib/api";
 
 type Category = "QNA" | "INFO" | "FREE";
-type ReportReason = "ABUSE" | "FALSE_INFO" | "SPAM" | "ETC";
 
 interface Author {
   id: number;
@@ -107,7 +105,6 @@ function CommentItem({
   onStartReply,
   onCancelReply,
   onSubmitReply,
-  onReport,
 }: {
   comment: Comment;
   depth?: number;
@@ -115,7 +112,6 @@ function CommentItem({
   onStartReply: (id: number) => void;
   onCancelReply: () => void;
   onSubmitReply: (parentId: number, content: string) => Promise<void>;
-  onReport: (commentId: number) => void;
 }) {
   const [replyText, setReplyText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -144,34 +140,16 @@ function CommentItem({
         <p className="text-sm text-gray-800 whitespace-pre-wrap pl-10">{comment.content}</p>
       </div>
 
-      {/* 대댓글 */}
-      {comment.replies?.length > 0 && (
-        <div className="flex flex-col">
-          {comment.replies.map((reply) => (
-            <CommentItem
-              key={reply.id}
-              comment={reply}
-              depth={depth + 1}
-              replyingTo={replyingTo}
-              onStartReply={onStartReply}
-              onCancelReply={onCancelReply}
-              onSubmitReply={onSubmitReply}
-              onReport={onReport}
-            />
-          ))}
-        </div>
-      )}
-
       {/* 액션 */}
       {depth === 0 && (
-        <div className="pb-4 pl-10 flex items-center justify-end text-xs text-gray-400">
+        <div className="pb-4 pl-10 flex items-center justify-between text-xs text-gray-400">
+          <button
+            onClick={() => isReplying ? onCancelReply() : onStartReply(comment.id)}
+            className="text-black hover:text-main100 transition-colors"
+          >
+            {isReplying ? "취소" : "답글쓰기"}
+          </button>
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => isReplying ? onCancelReply() : onStartReply(comment.id)}
-              className="text-black hover:text-main100 transition-colors"
-            >
-              {isReplying ? "취소" : "답글쓰기"}
-            </button>
             <span className="flex items-center gap-1">
               <ThumbsUp size={11} />
               {0}
@@ -204,6 +182,23 @@ function CommentItem({
           </button>
         </div>
       )}
+
+      {/* 대댓글 */}
+      {comment.replies?.length > 0 && (
+        <div className="flex flex-col">
+          {comment.replies.map((reply) => (
+            <CommentItem
+              key={reply.id}
+              comment={reply}
+              depth={depth + 1}
+              replyingTo={replyingTo}
+              onStartReply={onStartReply}
+              onCancelReply={onCancelReply}
+              onSubmitReply={onSubmitReply}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -220,7 +215,6 @@ export default function CommunityPostPage() {
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [commentText, setCommentText] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
-  const [reportTarget, setReportTarget] = useState<{ type: "post" | "comment"; id: number } | null>(null);
 
   const loadPost = useCallback(async () => {
     if (!postId || Number.isNaN(postId)) {
@@ -292,16 +286,6 @@ export default function CommunityPostPage() {
     }
   };
 
-  const handleReport = async (reason: ReportReason, detail?: string) => {
-    if (!reportTarget) return;
-    if (reportTarget.type === "post") {
-      await communityAPI.reportPost(reportTarget.id, { reason, detail });
-    } else {
-      await communityAPI.reportComment(reportTarget.id, { reason, detail });
-    }
-    alert("신고가 접수됐어요.");
-  };
-
   return (
     <div className="flex min-h-screen flex-col bg-white font-sans">
       <Topbar />
@@ -311,7 +295,7 @@ export default function CommunityPostPage() {
         {/* 목록으로 */}
         <button
           onClick={() => router.push("/community")}
-          className="mb-8 flex items-center gap-1 text-sm text-gray-500 hover:text-main100 transition-colors"
+          className="mb-8 flex items-center gap-1 text-sm text-black hover:text-main100 transition-colors"
         >
           <ChevronLeft size={15} />
           목록으로 돌아가기
@@ -331,15 +315,16 @@ export default function CommunityPostPage() {
         ) : (
           <>
             {/* 작성자 + 시간 */}
-            <div className="mb-4">
-              <AuthorBadge author={post.author} time={timeAgo(post.createdAt)} />
+            <div className="mb-4 flex items-start justify-between">
+              <AuthorBadge author={post.author} />
+              <span className="text-xs text-gray-400 shrink-0">{timeAgo(post.createdAt)}</span>
             </div>
 
             {/* 제목 */}
             <h1 className="text-xl font-extrabold text-gray-900 mb-6">{post.title}</h1>
 
             {/* 본문 */}
-            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap mb-6">
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap mb-10">
               {post.content}
             </p>
 
@@ -353,7 +338,7 @@ export default function CommunityPostPage() {
               </div>
             )}
 
-            {/* 좋아요 / 댓글 / 신고 */}
+            {/* 좋아요 / 댓글 */}
             <div className="flex items-center justify-between py-3 border-y border-gray-100 mb-6">
               <div className="flex items-center gap-4 text-sm text-gray-500">
                 <button
@@ -369,13 +354,6 @@ export default function CommunityPostPage() {
                   {post.commentCount}
                 </span>
               </div>
-              <button
-                onClick={() => setReportTarget({ type: "post", id: post.id })}
-                className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
-              >
-                <Flag size={12} />
-                신고하기
-              </button>
             </div>
 
             {/* 댓글 입력 */}
@@ -414,7 +392,6 @@ export default function CommunityPostPage() {
                       onStartReply={setReplyingTo}
                       onCancelReply={() => setReplyingTo(null)}
                       onSubmitReply={submitReply}
-                      onReport={(commentId) => setReportTarget({ type: "comment", id: commentId })}
                     />
                   ))}
                 </div>
@@ -423,10 +400,6 @@ export default function CommunityPostPage() {
           </>
         )}
       </main>
-
-      {reportTarget && (
-        <ReportModal onClose={() => setReportTarget(null)} onSubmit={handleReport} />
-      )}
     </div>
   );
 }

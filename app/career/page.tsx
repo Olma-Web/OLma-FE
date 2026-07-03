@@ -79,6 +79,10 @@ function formatAmount(amount: number): string {
   return `₩${amount}만 원`;
 }
 
+function estimateFallbackName(est: EstimateItem): string {
+  return `${est.jobCategoryName} · ${est.screenCount}화면 · ${est.experienceLevelLabel}`;
+}
+
 export default function CareerPage() {
   const [tab, setTab] = useState<"rates" | "estimates">("rates");
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -187,7 +191,7 @@ export default function CareerPage() {
     <div className="flex min-h-screen flex-col bg-white font-sans">
       <Topbar />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 md:px-6">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 md:px-6">
         <h1 className="text-2xl font-extrabold text-gray-900">커리어 관리</h1>
         <p className="mt-2 text-sm text-gray-500">
           나의 커리어 가치가 기록되는 곳. 나의 시장 가치를 증명하는 단가와 견적 히스토리를 체계적으로 관리하세요.
@@ -344,51 +348,61 @@ export default function CareerPage() {
                 </Link>
               </div>
             ) : (
-              <ul className="flex flex-col gap-3">
+              <ul className="grid grid-cols-2 gap-4">
                 {estimates.map((est) => {
                   // finalAmount는 원(₩) 단위 → 만원 단위로 변환
                   const toMan = (won: number) => Math.round(won / 10000);
-                  const finalMan = toMan(est.finalAmount);
+
+                  // 목록 API는 단계별 금액을 내려주지 않아, 최종 금액과 배수들로 역산
+                  const step3PlatformFee = est.finalAmount / (1 + est.addonPercent / 100);
+                  const step2UxFee = step3PlatformFee / est.platformMultiplier;
+                  const step1BasicFee = step2UxFee / est.uxMultiplier;
+                  const baseRatePerScreen = step1BasicFee / est.screenCount;
+                  const step4AddonFee = est.finalAmount - step3PlatformFee;
 
                   return (
                     <li
                       key={est.id}
                       className="rounded-2xl bg-[#F5F5F5] px-6 py-5"
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex flex-1 flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-base font-bold text-main100">
-                              {est.projectName || "프로젝트명 미설정"}
-                            </span>
-                            <span className="text-xs text-gray-400">{timeAgo(est.createdAt)}</span>
-                          </div>
-                          <div className="flex items-center gap-4 text-sm">
-                            <span className="flex items-center gap-1">
-                              <span className="text-gray-500">직군</span>
-                              <span className="font-bold text-gray-900">{est.jobCategoryName}</span>
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <span className="text-gray-500">화면</span>
-                              <span className="font-bold text-gray-900">{est.screenCount}개</span>
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <span className="text-gray-500">경력</span>
-                              <span className="font-bold text-gray-900">{est.experienceLevelLabel}</span>
-                            </span>
-                          </div>
+                      <div className="flex items-center justify-between gap-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-bold text-gray-900">
+                            {est.projectName || estimateFallbackName(est)}
+                          </span>
+                          <span className="text-xs text-gray-400">{timeAgo(est.createdAt)}</span>
                         </div>
-                        <div className="flex shrink-0 items-center gap-5">
-                          <p className="text-base font-bold text-main100 whitespace-nowrap">
-                            ₩{finalMan.toLocaleString()}만 원
-                          </p>
-                          <button
-                            onClick={() => deleteEstimate(est.id)}
-                            className="flex items-center gap-1 rounded-lg border border-main100 px-2.5 py-1.5 text-xs text-main100 transition hover:bg-[#f3f1ff] shrink-0"
-                          >
-                            <Trash2 size={12} />
-                            삭제하기
-                          </button>
+                        <button
+                          onClick={() => deleteEstimate(est.id)}
+                          className="flex items-center gap-1 rounded-lg border border-main100 px-2.5 py-1.5 text-xs text-main100 transition hover:bg-[#f3f1ff] shrink-0"
+                        >
+                          <Trash2 size={12} />
+                          삭제하기
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col text-sm text-gray-600">
+                        <div className="flex justify-between py-3 border-b border-gray-300">
+                          <span>기본 작업비</span>
+                          <span>{est.screenCount}화면 x {toMan(baseRatePerScreen).toLocaleString()}만 원 = {toMan(step1BasicFee).toLocaleString()}만 원</span>
+                        </div>
+                        <div className="flex justify-between py-3 border-b border-gray-300">
+                          <span>UX 기획 관여도</span>
+                          <span>x{est.uxMultiplier} = {toMan(step2UxFee).toLocaleString()}만 원</span>
+                        </div>
+                        <div className="flex justify-between py-3 border-b border-gray-300">
+                          <span>플랫폼 배수</span>
+                          <span>x{est.platformMultiplier} = {toMan(step3PlatformFee).toLocaleString()}만 원</span>
+                        </div>
+                        {est.addonPercent > 0 && (
+                          <div className="flex justify-between py-3 border-b border-gray-300">
+                            <span>{est.addons.map((a) => ADDON_LABELS[a] || a).join(", ")}</span>
+                            <span>+{toMan(step4AddonFee).toLocaleString()}만 원 (+{est.addonPercent}%)</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center py-3">
+                          <span className="font-semibold text-main100">권장 최소 방어 견적</span>
+                          <span className="text-lg font-bold text-main100">₩{toMan(est.finalAmount).toLocaleString()}만 원</span>
                         </div>
                       </div>
                     </li>

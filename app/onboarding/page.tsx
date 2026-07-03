@@ -88,7 +88,13 @@ export default function OnboardingPage() {
     }
 
     try {
-      await submissionAPI.submit(body);
+      const result = await submissionAPI.submit(body);
+
+      // 커리어 관리 > 내 단가 기록 탭에 뜨도록 저장된 ID 목록에 추가
+      const raw = localStorage.getItem("careerSavedIds");
+      const ids: number[] = raw ? JSON.parse(raw) : [];
+      if (!ids.includes(result.id)) ids.push(result.id);
+      localStorage.setItem("careerSavedIds", JSON.stringify(ids));
 
       // submission 후 user profile에 jobCategory/experienceLevel 저장
       // (백엔드 submission 저장이 user profile을 자동 업데이트하지 않으므로 별도 호출 필요)
