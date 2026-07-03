@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ThumbsUp, MessageCircle } from "lucide-react";
 import Topbar from "@/components/topbar";
 import { communityAPI, userAPI } from "@/lib/api";
@@ -33,6 +34,12 @@ interface MyComment {
   parentCommentId: number | null;
   content: string;
   createdAt: string;
+}
+
+interface MyProfile {
+  nickname: string;
+  jobCategoryName: string | null;
+  experienceLevelLabel: string | null;
 }
 
 interface PageResponse {
@@ -74,6 +81,132 @@ function timeAgo(dateStr: string): string {
   return `${days}일 전`;
 }
 
+function AuthorLine({ nickname, jobCategoryName, experienceLevelLabel }: {
+  nickname: string;
+  jobCategoryName?: string | null;
+  experienceLevelLabel?: string | null;
+}) {
+  return (
+    <span className="flex items-center gap-1.5 text-sm text-gray-500">
+      <span className="h-5 w-5 shrink-0 rounded-full bg-main25" />
+      <span className="font-semibold text-gray-700">{nickname}</span>
+      {(jobCategoryName || experienceLevelLabel) && (
+        <span className="text-xs font-semibold text-main100">
+          {[
+            jobCategoryName ? stripUiUx(jobCategoryName) : null,
+            experienceLevelLabel ? stripLevelTier(experienceLevelLabel) : null,
+          ].filter(Boolean).join(" / ")}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function PostRow({ post }: { post: PostSummary }) {
+  return (
+    <Link
+      href={`/community/${post.id}`}
+      className="flex flex-col gap-1.5 rounded-2xl bg-white px-6 pt-[8px] pb-5 shadow-[0_2px_10px_rgba(0,0,0,0.10)] transition hover:shadow-[0_4px_14px_rgba(0,0,0,0.14)]"
+    >
+      <div className="mt-2 flex items-center justify-between">
+        <AuthorLine
+          nickname={post.author.nickname}
+          jobCategoryName={post.author.jobCategoryName}
+          experienceLevelLabel={post.author.experienceLevelLabel}
+        />
+        <span className="text-xs text-gray-400">{timeAgo(post.createdAt)}</span>
+      </div>
+
+      <div className="mt-2 flex items-center gap-3">
+        <p className="flex-1 truncate text-base font-bold text-gray-900">{post.title}</p>
+      </div>
+
+      <div className="flex items-center justify-end gap-3 text-sm text-gray-400">
+        <span className="flex items-center gap-1">
+          <ThumbsUp size={14} />
+          {post.likeCount}
+        </span>
+        <span className="flex items-center gap-1">
+          <MessageCircle size={14} />
+          {post.commentCount}
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function CommentRow({ item, profile }: { item: MyComment; profile: MyProfile }) {
+  return (
+    <Link
+      href={`/community/${item.postId}`}
+      className="flex flex-col gap-1.5 rounded-2xl bg-white px-6 pt-[8px] pb-5 shadow-[0_2px_10px_rgba(0,0,0,0.10)] transition hover:shadow-[0_4px_14px_rgba(0,0,0,0.14)]"
+    >
+      <div className="mt-2 flex items-center justify-between">
+        <AuthorLine
+          nickname={profile.nickname}
+          jobCategoryName={profile.jobCategoryName}
+          experienceLevelLabel={profile.experienceLevelLabel}
+        />
+        <span className="text-xs text-gray-400">{timeAgo(item.createdAt)}</span>
+      </div>
+
+      <div className="mt-2">
+        <p className="text-xs text-gray-400 truncate">게시글: {item.postTitle}</p>
+        <p className="text-base font-bold text-gray-900 line-clamp-2">{item.content}</p>
+      </div>
+    </Link>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  onChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="mt-6 flex items-center justify-center gap-2">
+      <button
+        onClick={() => onChange(Math.max(0, page - 1))}
+        disabled={page === 0}
+        className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition hover:bg-gray-50 disabled:opacity-30"
+      >
+        이전
+      </button>
+      <span className="text-sm text-gray-500">
+        {page + 1} / {totalPages}
+      </span>
+      <button
+        onClick={() => onChange(Math.min(totalPages - 1, page + 1))}
+        disabled={page >= totalPages - 1}
+        className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition hover:bg-gray-50 disabled:opacity-30"
+      >
+        다음
+      </button>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-12">
+      <p className="mb-6 text-center text-neutral-600">
+        아직 작성한 글이 없습니다.
+      </p>
+      <Link
+        href="/community"
+        className="rounded-xl bg-main100 px-6 py-3 text-white font-semibold transition hover:brightness-105"
+      >
+        커뮤니티 가기
+      </Link>
+    </div>
+  );
+}
+
 export default function UserPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>("posts");
@@ -82,11 +215,11 @@ export default function UserPage() {
   const [commentsPage, setCommentsPage] = useState(0);
   const [commentsData, setCommentsData] = useState<CommentPageResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [myProfile, setMyProfile] = useState<{
-    nickname: string;
-    jobCategoryName: string | null;
-    experienceLevelLabel: string | null;
-  }>({ nickname: "", jobCategoryName: null, experienceLevelLabel: null });
+  const [myProfile, setMyProfile] = useState<MyProfile>({
+    nickname: "",
+    jobCategoryName: null,
+    experienceLevelLabel: null,
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -137,119 +270,6 @@ export default function UserPage() {
     if (commentsPage === 0) return;
     communityAPI.getMyComments(commentsPage, PAGE_SIZE).then(setCommentsData);
   }, [commentsPage]);
-
-  const PostRow = ({ post }: { post: PostSummary }) => (
-    <div
-      onClick={() => router.push(`/community/${post.id}`)}
-      className="flex flex-col gap-1.5 rounded-2xl bg-white px-6 pt-[8px] pb-5 shadow-[0_2px_10px_rgba(0,0,0,0.10)] transition hover:shadow-[0_4px_14px_rgba(0,0,0,0.14)] cursor-pointer"
-    >
-      <div className="mt-2 flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-sm text-gray-500">
-          <span className="h-5 w-5 shrink-0 rounded-full bg-main25" />
-          <span className="font-semibold text-gray-700">{post.author.nickname}</span>
-          {(post.author.jobCategoryName || post.author.experienceLevelLabel) && (
-            <span className="text-xs font-semibold text-main100">
-              {[
-                post.author.jobCategoryName ? stripUiUx(post.author.jobCategoryName) : null,
-                post.author.experienceLevelLabel ? stripLevelTier(post.author.experienceLevelLabel) : null,
-              ].filter(Boolean).join(" / ")}
-            </span>
-          )}
-        </span>
-        <span className="text-xs text-gray-400">{timeAgo(post.createdAt)}</span>
-      </div>
-
-      <div className="mt-2 flex items-center gap-3">
-        <p className="flex-1 truncate text-base font-bold text-gray-900">{post.title}</p>
-      </div>
-
-      <div className="flex items-center justify-end gap-3 text-sm text-gray-400">
-        <span className="flex items-center gap-1">
-          <ThumbsUp size={14} />
-          {post.likeCount}
-        </span>
-        <span className="flex items-center gap-1">
-          <MessageCircle size={14} />
-          {post.commentCount}
-        </span>
-      </div>
-    </div>
-  );
-
-  const CommentRow = ({ item }: { item: MyComment }) => (
-    <div
-      onClick={() => router.push(`/community/${item.postId}`)}
-      className="flex flex-col gap-1.5 rounded-2xl bg-white px-6 pt-[8px] pb-5 shadow-[0_2px_10px_rgba(0,0,0,0.10)] transition hover:shadow-[0_4px_14px_rgba(0,0,0,0.14)] cursor-pointer"
-    >
-      <div className="mt-2 flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-sm text-gray-500">
-          <span className="h-5 w-5 shrink-0 rounded-full bg-main25" />
-          <span className="font-semibold text-gray-700">{myProfile.nickname}</span>
-          {(myProfile.jobCategoryName || myProfile.experienceLevelLabel) && (
-            <span className="text-xs font-semibold text-main100">
-              {[
-                myProfile.jobCategoryName ? stripUiUx(myProfile.jobCategoryName) : null,
-                myProfile.experienceLevelLabel ? stripLevelTier(myProfile.experienceLevelLabel) : null,
-              ].filter(Boolean).join(" / ")}
-            </span>
-          )}
-        </span>
-        <span className="text-xs text-gray-400">{timeAgo(item.createdAt)}</span>
-      </div>
-
-      <div className="mt-2">
-        <p className="text-xs text-gray-400 truncate">게시글: {item.postTitle}</p>
-        <p className="text-base font-bold text-gray-900 line-clamp-2">{item.content}</p>
-      </div>
-    </div>
-  );
-
-  const Pagination = ({
-    page,
-    totalPages,
-    onChange,
-  }: {
-    page: number;
-    totalPages: number;
-    onChange: (page: number) => void;
-  }) => {
-    if (totalPages <= 1) return null;
-    return (
-      <div className="mt-6 flex items-center justify-center gap-2">
-        <button
-          onClick={() => onChange(Math.max(0, page - 1))}
-          disabled={page === 0}
-          className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition hover:bg-gray-50 disabled:opacity-30"
-        >
-          이전
-        </button>
-        <span className="text-sm text-gray-500">
-          {page + 1} / {totalPages}
-        </span>
-        <button
-          onClick={() => onChange(Math.min(totalPages - 1, page + 1))}
-          disabled={page >= totalPages - 1}
-          className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition hover:bg-gray-50 disabled:opacity-30"
-        >
-          다음
-        </button>
-      </div>
-    );
-  };
-
-  const EmptyState = () => (
-    <div className="flex flex-col items-center justify-center py-12">
-      <p className="mb-6 text-center text-neutral-600">
-        아직 작성한 글이 없습니다.
-      </p>
-      <button
-        onClick={() => router.push("/community")}
-        className="rounded-xl bg-main100 px-6 py-3 text-white font-semibold transition hover:brightness-105"
-      >
-        커뮤니티 가기
-      </button>
-    </div>
-  );
 
   return (
     <div className="relative isolate flex min-h-screen w-full flex-col bg-white">
@@ -334,7 +354,7 @@ export default function UserPage() {
             <>
               <div className="flex flex-col gap-3">
                 {commentsData.comments.map((item) => (
-                  <CommentRow key={item.id} item={item} />
+                  <CommentRow key={item.id} item={item} profile={myProfile} />
                 ))}
               </div>
               <Pagination
