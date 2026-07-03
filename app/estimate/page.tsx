@@ -137,7 +137,7 @@ export default function EstimatePage() {
     <div className="min-h-screen font-sans bg-estimate">
       <Topbar />
 
-      <div className="mx-auto max-w-5xl px-4 py-10">
+      <div className="mx-auto max-w-5xl px-4 py-10 md:px-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-titlefont1">스마트 견적 계산기</h1>
           <p className="mt-1 text-sm text-bodyfont3">실전 프로젝트에 맞는 정확한 견적을 산출하세요.</p>

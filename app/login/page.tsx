@@ -23,6 +23,7 @@ export default function LoginPage() {
       const data = await authAPI.login(email, password);
       localStorage.setItem("token", data.token);
       localStorage.setItem("userId", String(data.id));
+      localStorage.removeItem("careerSavedIds");
       window.location.href = "/";
     } catch (err) {
       setPasswordError(err instanceof Error ? err.message : "서버에 연결할 수 없어요");

@@ -143,7 +143,7 @@ export default function CommunityPage() {
     <div className="flex min-h-screen flex-col bg-white font-sans">
       <Topbar />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-12 pb-10 md:px-6">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 md:px-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-extrabold text-gray-900">커뮤니티</h1>

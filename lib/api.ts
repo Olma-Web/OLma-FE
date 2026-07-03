@@ -219,18 +219,6 @@ export const communityAPI = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-
-  reportPost: (postId: number, body: { reason: "ABUSE" | "FALSE_INFO" | "SPAM" | "ETC"; detail?: string }) =>
-    fetchAPI(`/v1/community/posts/${postId}/reports`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-
-  reportComment: (commentId: number, body: { reason: "ABUSE" | "FALSE_INFO" | "SPAM" | "ETC"; detail?: string }) =>
-    fetchAPI(`/v1/community/comments/${commentId}/reports`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
 };
 
 // 벤치마크
