@@ -6,20 +6,25 @@ import { authAPI } from "@/lib/api";
 import { PasswordInput } from "@/components/ui/PassWordInput";
 
 // --- validation ---
-const isValidNickname = (v: string) => /^(?=.*[a-zA-Z])[-a-zA-Z0-9_.]{2,10}$/.test(v);
-const isValidPassword = (v: string) => /^(?=.*\d)(?=.*[a-zA-Z])[0-9a-zA-Z!@#$%^&*]{8,}$/.test(v);
+const isValidNickname = (v: string) => /^[a-zA-Z0-9가-힣\-_.]{2,10}$/.test(v);
 
 const validateEmail = (v: string) =>
   !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? "" : "올바른 이메일 형식이 아닙니다.";
 
-const validatePassword = (v: string) =>
-  !v || isValidPassword(v) ? "" : "영문, 숫자, 특수문자(!@#$%^&*) 조합 8자리 이상이어야 합니다.";
+const validatePassword = (v: string) => {
+  if (!v) return "";
+  if (v.length < 8) return "비밀번호는 8자리 이상이어야 합니다.";
+  if (!/[a-zA-Z]/.test(v)) return "영문자를 1자 이상 포함해야 합니다.";
+  if (!/[0-9]/.test(v)) return "숫자를 1자 이상 포함해야 합니다.";
+  if (!/[^a-zA-Z0-9]/.test(v)) return "특수문자를 1자 이상 포함해야 합니다.";
+  return "";
+};
 
 const validatePasswordConfirm = (v: string, password: string) =>
   !v || v === password ? "" : "비밀번호가 일치하지 않습니다.";
 
 const validateNickname = (v: string) =>
-  isValidNickname(v) ? "" : "영문 포함 2~10자, 영문·숫자·-_.만 사용 가능합니다.";
+  isValidNickname(v) ? "" : "2~10자, 한글·영문·숫자·-_.만 사용 가능합니다.";
 
 // --- input className ---
 const inputClass = (error: string) =>
@@ -58,6 +63,7 @@ export default function SignupPage() {
       const data = await authAPI.signup(form.email, form.password, form.nickname);
       localStorage.setItem("token", data.token);
       localStorage.setItem("userId", String(data.id));
+      localStorage.setItem("nickname", form.nickname);
       window.location.href = "/onboarding";
     } catch (err) {
       alert(err instanceof Error ? err.message : "서버에 연결할 수 없어요");
@@ -100,7 +106,7 @@ export default function SignupPage() {
               {/* 비밀번호 */}
               <PasswordInput
                 label="비밀번호"
-                hint="(영문, 숫자, 특수문자 조합 8자리 이상)"
+                hint="영문, 숫자, 특수문자 조합 8자리 이상"
                 value={form.password}
                 onChange={set("password")}
                 onBlur={() => setErrors((err) => ({ ...err, password: validatePassword(form.password) }))}
@@ -132,7 +138,11 @@ export default function SignupPage() {
                   placeholder="사용할 닉네임을 입력하세요"
                   className={inputClass(errors.nickname)}
                 />
-                {errors.nickname && <p className="text-xs text-red-500">{errors.nickname}</p>}
+                {errors.nickname ? (
+                  <p className="text-xs text-red-500">{errors.nickname}</p>
+                ) : (
+                  <p className="text-xs text-bodyfont4">한글, 영문, 숫자 조합 2자리 이상</p>
+                )}
               </div>
 
               {/* 약관 동의 */}
