@@ -267,6 +267,8 @@ export default function MarketDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [projectName, setProjectName] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -333,8 +335,12 @@ export default function MarketDashboard() {
     load();
   }, []);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (saveStatus === "saving" || saveStatus === "saved") return;
+    setShowProjectModal(true);
+  };
+
+  const handleSaveWithProject = async () => {
     const userId = typeof window !== "undefined" ? Number(localStorage.getItem("userId")) : null;
     if (!userId || !userProfile || !latestSubmission) return;
 
@@ -349,12 +355,15 @@ export default function MarketDashboard() {
         amount: latestSubmission.amount,
         amountUnit: latestSubmission.amountUnit,
         sessionId: crypto.randomUUID(),
+        projectName: projectName || undefined,
       });
       const raw = localStorage.getItem("careerSavedIds");
       const ids: number[] = raw ? JSON.parse(raw) : [];
       if (!ids.includes(result.id)) ids.push(result.id);
       localStorage.setItem("careerSavedIds", JSON.stringify(ids));
       setSaveStatus("saved");
+      setShowProjectModal(false);
+      setProjectName("");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "저장에 실패했습니다.";
       alert(msg);
@@ -501,6 +510,57 @@ export default function MarketDashboard() {
           </Link>
         </div>
       </main>
+
+      {/* Project name modal */}
+      {showProjectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-lg">
+            <button
+              onClick={() => {
+                setShowProjectModal(false);
+                setProjectName("");
+              }}
+              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+            <h2 className="text-lg font-bold text-gray-900">내 단가 기록 저장하기</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              이 문서 결과를 사용할 기획/프로젝트 이름을 설정하세요.
+            </p>
+            <div className="mt-4">
+              <label className="block text-sm font-semibold text-gray-700">
+                프로젝트명
+              </label>
+              <input
+                type="text"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                placeholder="예: 2024년 Q1 프로젝트"
+                className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-main100 focus:outline-none"
+              />
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowProjectModal(false);
+                  setProjectName("");
+                }}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSaveWithProject}
+                disabled={saveStatus === "saving"}
+                className="flex-1 rounded-lg bg-main100 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#6a5ee6] disabled:opacity-50"
+              >
+                {saveStatus === "saving" ? "저장 중..." : "저장하기"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

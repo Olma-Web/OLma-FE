@@ -1,40 +1,40 @@
 "use client";
 
-import { useState } from "react";
-
-const ADDON_LABEL: Record<string, string> = {
-  DESIGN_SYSTEM: "개발자용 디자인 시스템 구축",
-  PROTOTYPING: "화면 프로토타이핑",
-  SOURCE_TRANSFER: "Figma 등 원본 소스 전송",
-};
+import { useState, useRef } from "react";
+import { type EstimateResult } from "@/lib/estimate/constants";
 
 const toMan = (won: number) => Math.round(won / 10000);
 
+const ADDON_LABEL: Record<string, string> = {
+  "화면 프로토타이핑": "화면 프로토타이핑",
+  "개발자용 디자인 시스템 구축": "개발자용 디자인 시스템 구축",
+  "Figma 등 원본 소스 전송": "Figma 등 원본 소스 전송",
+};
+
 interface Props {
-  result: Record<string, unknown>;
+  result: EstimateResult;
+  nickname: string;
   onClose: () => void;
-  onSave: () => Promise<void>;
+  onSave: (projectName?: string) => Promise<void>;
 }
 
-export default function EstimateModal({ result, onClose, onSave }: Props) {
+export default function EstimateModal({ result, nickname, onClose, onSave }: Props) {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [projectName, setProjectName] = useState("");
+  const modalRef = useRef<HTMLDivElement>(null);
+  const buttonsRef = useRef<HTMLDivElement>(null);
 
-  const finalAmount = result.finalAmount as number;
-  const screenCount = result.screenCount as number;
-  const step1BasicFee = result.step1BasicFee as number;
-  const uxMultiplier = result.uxMultiplier as number;
-  const step2UxFee = result.step2UxFee as number;
-  const platformMultiplier = result.platformMultiplier as number;
-  const step3PlatformFee = result.step3PlatformFee as number;
-  const addonPercent = result.addonPercent as number;
-  const step4AddonFee = result.step4AddonFee as number;
-  const addons = result.addons as string[];
+  const {
+    finalAmount, screenCount, baseRatePerScreen, step1BasicFee,
+    uxMultiplier, step2UxFee, platformMultiplier, step3PlatformFee,
+    addonPercent, step4AddonFee, addons,
+  } = result;
 
   const handleSave = async () => {
     if (saveStatus === "saving" || saveStatus === "saved") return;
     setSaveStatus("saving");
     try {
-      await onSave();
+      await onSave(projectName || undefined);
       setSaveStatus("saved");
     } catch {
       setSaveStatus("error");
@@ -42,13 +42,42 @@ export default function EstimateModal({ result, onClose, onSave }: Props) {
     }
   };
 
+  const handleImageSave = async () => {
+    if (!modalRef.current) return;
+    const html2canvas = (await import("html2canvas-pro")).default;
+    const captureHeight = modalRef.current.scrollHeight - (buttonsRef.current?.offsetHeight ?? 0);
+    const canvas = await html2canvas(modalRef.current, {
+      scale: 2,
+      height: captureHeight,
+      windowHeight: captureHeight,
+      onclone: (clonedDoc) => {
+        // html2canvas가 <input> 값의 텍스트 베이스라인을 잘못 계산해 위쪽이 잘리는 문제 회피용
+        // (clonedDoc은 별도 iframe 문서라 instanceof HTMLInputElement가 통하지 않아 tagName으로 체크)
+        const input = clonedDoc.querySelector('input[type="text"]') as HTMLInputElement | null;
+        if (input && input.tagName === "INPUT") {
+          const replacement = clonedDoc.createElement("div");
+          replacement.className = input.className;
+          replacement.style.display = "flex";
+          replacement.style.alignItems = "center";
+          replacement.style.color = input.value ? "" : "#9ca3af";
+          replacement.textContent = input.value || input.placeholder;
+          input.replaceWith(replacement);
+        }
+      },
+    });
+    const link = document.createElement("a");
+    link.download = "견적서.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-xl rounded-2xl bg-white px-8 py-8 shadow-xl">
+      <div ref={modalRef} className="w-full max-w-xl rounded-2xl bg-white px-8 py-8 shadow-xl">
 
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-bold text-titlefont1">
-            <span className="text-main100 text-2xl">User</span>님의 견적서
+            <span className="text-main100 text-2xl">{nickname || "User"}</span>님의 견적서
           </h2>
           <button onClick={onClose} className="text-bodyfont4 hover:text-titlefont1 transition-colors">
             ✕
@@ -64,7 +93,7 @@ export default function EstimateModal({ result, onClose, onSave }: Props) {
         <div className="rounded-xl bg-gray-50 px-5 flex flex-col text-sm text-bodyfont2 mb-8">
           <div className="flex justify-between py-3 border-b border-gray-200">
             <span>기본 작업비</span>
-            <span>{screenCount}화면 x 100만 원 = {toMan(step1BasicFee).toLocaleString()}만 원</span>
+            <span>{screenCount}화면 x {toMan(baseRatePerScreen).toLocaleString()}만 원 = {toMan(step1BasicFee).toLocaleString()}만 원</span>
           </div>
           <div className="flex justify-between py-3 border-b border-gray-200">
             <span>UX 기획 관여도</span>
@@ -76,13 +105,26 @@ export default function EstimateModal({ result, onClose, onSave }: Props) {
           </div>
           {addonPercent > 0 && (
             <div className="flex justify-between py-3">
-              <span>{addons?.map((a) => ADDON_LABEL[a]).join(", ")}</span>
+              <span>{(addons as string[]).map((a) => ADDON_LABEL[a] || a).join(", ")}</span>
               <span>+{toMan(step4AddonFee).toLocaleString()}만 원 (+{addonPercent}%)</span>
             </div>
           )}
         </div>
 
-        <div className="flex gap-3">
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            프로젝트명
+          </label>
+          <input
+            type="text"
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            placeholder="예: 2024년 Q1 프로젝트"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-main100 focus:outline-none"
+          />
+        </div>
+
+        <div ref={buttonsRef} className="flex gap-3" data-html2canvas-ignore="true">
           <button
             onClick={handleSave}
             disabled={saveStatus === "saving" || saveStatus === "saved"}
@@ -93,7 +135,10 @@ export default function EstimateModal({ result, onClose, onSave }: Props) {
             {saveStatus === "error" && "저장 실패"}
             {saveStatus === "idle" && "내 보관함에 저장하기"}
           </button>
-          <button className="flex-1 rounded-2xl border border-main100 py-3 text-sm font-semibold text-main100 hover:bg-main25 transition-all cursor-pointer">
+          <button
+            onClick={handleImageSave}
+            className="flex-1 rounded-2xl border border-main100 py-3 text-sm font-semibold text-main100 hover:bg-main25 transition-all cursor-pointer"
+          >
             이미지로 저장하기
           </button>
         </div>

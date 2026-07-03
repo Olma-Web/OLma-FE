@@ -131,6 +131,7 @@ export const estimateAPI = {
     uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";
     platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
     addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];
+    projectName?: string;
   }) =>
     fetchAPI("/v1/estimates", {
       method: "POST",
@@ -150,6 +151,7 @@ export const careerSaveAPI = {
     amount: number;
     amountUnit: string;
     sessionId: string;
+    projectName?: string;
   }) =>
     fetchAPI("/v1/submissions", {
       method: "POST",
@@ -158,6 +160,50 @@ export const careerSaveAPI = {
 
   getById: (id: number) =>
     fetchAPI(`/v1/submissions/${id}`),
+};
+
+// 커뮤니티
+export const communityAPI = {
+  getPosts: (params?: { category?: "QNA" | "INFO" | "FREE"; page?: number; size?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.category) qs.set("category", params.category);
+    qs.set("page", String(params?.page ?? 0));
+    qs.set("size", String(params?.size ?? 20));
+    return fetchAPI(`/v1/community/posts?${qs.toString()}`);
+  },
+
+  getPost: (postId: number) =>
+    fetchAPI(`/v1/community/posts/${postId}`),
+
+  createPost: (body: { title: string; content: string; category: "QNA" | "INFO" | "FREE"; imageUrls?: string[] }) =>
+    fetchAPI("/v1/community/posts", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  likePost: (postId: number) =>
+    fetchAPI(`/v1/community/posts/${postId}/likes`, { method: "POST" }),
+
+  unlikePost: (postId: number) =>
+    fetchAPI(`/v1/community/posts/${postId}/likes`, { method: "DELETE" }),
+
+  createComment: (postId: number, body: { content: string; parentCommentId?: number }) =>
+    fetchAPI(`/v1/community/posts/${postId}/comments`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  reportPost: (postId: number, body: { reason: "ABUSE" | "FALSE_INFO" | "SPAM" | "ETC"; detail?: string }) =>
+    fetchAPI(`/v1/community/posts/${postId}/reports`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  reportComment: (commentId: number, body: { reason: "ABUSE" | "FALSE_INFO" | "SPAM" | "ETC"; detail?: string }) =>
+    fetchAPI(`/v1/community/comments/${commentId}/reports`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 // 벤치마크
