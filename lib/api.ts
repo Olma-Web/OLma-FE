@@ -219,6 +219,12 @@ export const communityAPI = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  getMyPosts: (page = 0, size = 20) =>
+    fetchAPI(`/v1/community/me/posts?page=${page}&size=${size}`),
+
+  getMyComments: (page = 0, size = 20) =>
+    fetchAPI(`/v1/community/me/comments?page=${page}&size=${size}`),
 };
 
 // 벤치마크
