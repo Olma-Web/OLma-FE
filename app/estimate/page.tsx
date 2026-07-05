@@ -292,7 +292,18 @@ export default function EstimatePage() {
           result={result}
           nickname={nickname}
           onClose={() => setShowModal(false)}
-          onSave={(name) =>
+          onSimulateNegotiation={(targetBudgetAmount) =>
+            estimateAPI.simulateNegotiation({
+              experienceLevelId: experienceLevelId!,
+              jobCategoryId: jobCategoryId!,
+              screenCount: Number(screens),
+              uxEngagement: UX_ENGAGEMENT_MAP[workScope as string],
+              platformEnvironment: PLATFORM_ENV_MAP[platform as string],
+              addons: deliverables.map((d) => ADDON_MAP[d]),
+              targetBudgetAmount,
+            })
+          }
+          onSave={(name, negotiationTargetBudgetAmount) =>
             estimateAPI.save({
               experienceLevelId: experienceLevelId!,
               jobCategoryId: jobCategoryId!,
@@ -301,6 +312,7 @@ export default function EstimatePage() {
               platformEnvironment: PLATFORM_ENV_MAP[platform as string],
               addons: deliverables.map((d) => ADDON_MAP[d]),
               projectName: name,
+              negotiationTargetBudgetAmount,
             })
           }
         />
