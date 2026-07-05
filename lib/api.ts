@@ -216,9 +216,19 @@ export const careerSaveAPI = {
 
 // 커뮤니티
 export const communityAPI = {
-  getPosts: (params?: { category?: "QNA" | "INFO" | "FREE"; page?: number; size?: number }) => {
+  getPosts: (params?: {
+    category?: "QNA" | "INFO" | "FREE";
+    sort?: "LATEST" | "LIKES" | "COMMENTS";
+    jobCategoryId?: number;
+    experienceLevelId?: number;
+    page?: number;
+    size?: number;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.category) qs.set("category", params.category);
+    if (params?.sort) qs.set("sort", params.sort);
+    if (params?.jobCategoryId != null) qs.set("jobCategoryId", String(params.jobCategoryId));
+    if (params?.experienceLevelId != null) qs.set("experienceLevelId", String(params.experienceLevelId));
     qs.set("page", String(params?.page ?? 0));
     qs.set("size", String(params?.size ?? 20));
     return fetchAPI(`/v1/community/posts?${qs.toString()}`);

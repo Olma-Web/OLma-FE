@@ -4,9 +4,21 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { MessageCircle, ThumbsUp, ImageIcon } from "lucide-react";
 import Topbar from "@/components/topbar";
-import { communityAPI } from "@/lib/api";
+import { communityAPI, referenceAPI } from "@/lib/api";
 
 type Category = "QNA" | "INFO" | "FREE";
+type PostSort = "LATEST" | "LIKES" | "COMMENTS";
+
+interface JobCategoryOption {
+  id: number;
+  name: string;
+  children?: JobCategoryOption[] | null;
+}
+
+interface ExperienceLevelOption {
+  id: number;
+  label: string;
+}
 
 interface Author {
   id: number;
@@ -43,6 +55,19 @@ const CATEGORY_TABS: { label: string; value: Category | null }[] = [
   { label: "정보/꿀팁", value: "INFO" },
   { label: "자유/푸념", value: "FREE" },
 ];
+
+const SORT_OPTIONS: { label: string; value: PostSort }[] = [
+  { label: "최신", value: "LATEST" },
+  { label: "좋아요", value: "LIKES" },
+  { label: "댓글많은순", value: "COMMENTS" },
+];
+
+function flattenJobCategories(categories: JobCategoryOption[]): JobCategoryOption[] {
+  return categories.flatMap((category) => {
+    const children = category.children?.length ? flattenJobCategories(category.children) : [];
+    return children.length ? children : [category];
+  });
+}
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -112,6 +137,11 @@ function PostCard({ post }: { post: PostSummary }) {
 
 export default function CommunityPage() {
   const [category, setCategory] = useState<Category | null>(null);
+  const [sort, setSort] = useState<PostSort>("LATEST");
+  const [jobCategoryId, setJobCategoryId] = useState<number | null>(null);
+  const [experienceLevelId, setExperienceLevelId] = useState<number | null>(null);
+  const [jobOptions, setJobOptions] = useState<JobCategoryOption[]>([]);
+  const [levelOptions, setLevelOptions] = useState<ExperienceLevelOption[]>([]);
   const [page, setPage] = useState(0);
   const [data, setData] = useState<PostListResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -121,23 +151,62 @@ export default function CommunityPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await communityAPI.getPosts({ category: category ?? undefined, page, size: 20 });
+      const result = await communityAPI.getPosts({
+        category: category ?? undefined,
+        sort,
+        jobCategoryId: jobCategoryId ?? undefined,
+        experienceLevelId: experienceLevelId ?? undefined,
+        page,
+        size: 20,
+      });
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "게시글을 불러올 수 없어요.");
     } finally {
       setIsLoading(false);
     }
-  }, [category, page]);
+  }, [category, experienceLevelId, jobCategoryId, page, sort]);
 
   useEffect(() => {
     loadPosts();
   }, [loadPosts]);
 
+  useEffect(() => {
+    const loadFilters = async () => {
+      try {
+        const [categories, levels] = await Promise.all([
+          referenceAPI.getJobCategories(),
+          referenceAPI.getExperienceLevels(),
+        ]);
+        setJobOptions(flattenJobCategories(categories ?? []));
+        setLevelOptions(levels ?? []);
+      } catch {
+        setJobOptions([]);
+        setLevelOptions([]);
+      }
+    };
+
+    loadFilters();
+  }, []);
+
   const changeCategory = (value: Category | null) => {
     setCategory(value);
     setPage(0);
   };
+
+  const changeSort = (value: PostSort) => {
+    setSort(value);
+    setPage(0);
+  };
+
+  const resetFilters = () => {
+    setSort("LATEST");
+    setJobCategoryId(null);
+    setExperienceLevelId(null);
+    setPage(0);
+  };
+
+  const hasListFilters = sort !== "LATEST" || jobCategoryId != null || experienceLevelId != null;
 
   return (
     <div className="flex min-h-screen flex-col bg-white font-sans">
@@ -174,6 +243,76 @@ export default function CommunityPage() {
               {tab.label}
             </button>
           ))}
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-gray-500">정렬</span>
+            <div className="flex w-fit rounded-lg border border-gray-200 bg-gray-50 p-1">
+              {SORT_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => changeSort(option.value)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${
+                    sort === option.value
+                      ? "bg-white text-main100 shadow-sm"
+                      : "text-gray-500 hover:text-gray-800"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label className="flex flex-col gap-1 text-xs font-semibold text-gray-500">
+              직군
+              <select
+                value={jobCategoryId ?? ""}
+                onChange={(e) => {
+                  setJobCategoryId(e.target.value ? Number(e.target.value) : null);
+                  setPage(0);
+                }}
+                className="min-w-[150px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700 outline-none transition focus:border-main100"
+              >
+                <option value="">전체 직군</option>
+                {jobOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {stripUiUx(option.name)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1 text-xs font-semibold text-gray-500">
+              연차
+              <select
+                value={experienceLevelId ?? ""}
+                onChange={(e) => {
+                  setExperienceLevelId(e.target.value ? Number(e.target.value) : null);
+                  setPage(0);
+                }}
+                className="min-w-[160px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700 outline-none transition focus:border-main100"
+              >
+                <option value="">전체 연차</option>
+                {levelOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {stripLevelTier(option.label)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {hasListFilters && (
+              <button
+                onClick={resetFilters}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-500 transition hover:bg-gray-50 hover:text-gray-800"
+              >
+                초기화
+              </button>
+            )}
+          </div>
         </div>
 
         {isLoading ? (
