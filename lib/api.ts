@@ -102,6 +102,15 @@ export const userAPI = {
     }),
 };
 
+// 기준 데이터
+export const referenceAPI = {
+  getJobCategories: () =>
+    fetchAPI("/v1/reference/job-categories"),
+
+  getExperienceLevels: () =>
+    fetchAPI("/v1/reference/experience-levels"),
+};
+
 // 단가 기록 삭제
 export const submissionDeleteAPI = {
   delete: (submissionId: number) =>
@@ -159,11 +168,27 @@ export const estimateAPI = {
     platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
     addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];
     projectName?: string;
+    negotiationTargetBudgetAmount?: number;
   }) =>
     fetchAPI("/v1/estimates", {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  simulateNegotiation: (body: {
+    experienceLevelId: number;
+    jobCategoryId: number;
+    screenCount: number;
+    uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";
+    platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
+    addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];
+    targetBudgetAmount: number;
+  }) =>
+    fetchAPI("/v1/estimates/negotiation/simulate", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
 };
 
 // 커리어 보관함 저장

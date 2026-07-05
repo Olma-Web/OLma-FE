@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { type EstimateResult } from "@/lib/estimate/constants";
+import { type EstimateNegotiationResult, type EstimateResult } from "@/lib/estimate/constants";
 
 const toMan = (won: number) => Math.round(won / 10000);
 
@@ -15,13 +15,18 @@ interface Props {
   result: EstimateResult;
   nickname: string;
   onClose: () => void;
-  onSave: (projectName?: string) => Promise<void>;
+  onSave: (projectName?: string, negotiationTargetBudgetAmount?: number) => Promise<void>;
+  onSimulateNegotiation: (targetBudgetAmount: number) => Promise<EstimateNegotiationResult>;
 }
 
-export default function EstimateModal({ result, nickname, onClose, onSave }: Props) {
+export default function EstimateModal({ result, nickname, onClose, onSave, onSimulateNegotiation }: Props) {
   const [mode, setMode] = useState<"view" | "save">("view");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [targetBudget, setTargetBudget] = useState("");
+  const [negotiationResult, setNegotiationResult] = useState<EstimateNegotiationResult | null>(null);
+  const [negotiationStatus, setNegotiationStatus] = useState<"idle" | "loading" | "error">("idle");
   const modalRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -41,7 +46,7 @@ export default function EstimateModal({ result, nickname, onClose, onSave }: Pro
     if (saveStatus === "saving" || saveStatus === "saved") return;
     setSaveStatus("saving");
     try {
-      await onSave(projectName.trim() || undefined);
+      await onSave(projectName.trim() || undefined, negotiationResult?.targetBudgetAmount);
       setSaveStatus("saved");
     } catch {
       setSaveStatus("error");
@@ -49,11 +54,25 @@ export default function EstimateModal({ result, nickname, onClose, onSave }: Pro
     }
   };
 
+  const handleNegotiation = async () => {
+    const amount = Number(targetBudget);
+    if (!amount || amount <= 0 || negotiationStatus === "loading") return;
+    setNegotiationStatus("loading");
+    try {
+      const data = await onSimulateNegotiation(amount);
+      setNegotiationResult(data);
+      setNegotiationStatus("idle");
+    } catch {
+      setNegotiationStatus("error");
+    }
+  };
+
   const handleImageSave = async () => {
-    if (!modalRef.current) return;
+    const captureTarget = contentRef.current ?? modalRef.current;
+    if (!captureTarget) return;
     const html2canvas = (await import("html2canvas-pro")).default;
-    const captureHeight = modalRef.current.scrollHeight - (buttonsRef.current?.offsetHeight ?? 0);
-    const canvas = await html2canvas(modalRef.current, {
+    const captureHeight = captureTarget.scrollHeight - (buttonsRef.current?.offsetHeight ?? 0);
+    const canvas = await html2canvas(captureTarget, {
       scale: 2,
       height: captureHeight,
       windowHeight: captureHeight,
@@ -65,10 +84,10 @@ export default function EstimateModal({ result, nickname, onClose, onSave }: Pro
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div ref={modalRef} className="w-full max-w-xl rounded-2xl bg-white px-8 py-8 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+      <div ref={modalRef} className="flex max-h-[calc(100vh-48px)] w-full max-w-xl flex-col rounded-2xl bg-white shadow-xl">
 
-        <div className={`flex justify-between items-center ${mode === "view" ? "mb-6" : "mb-2"}`}>
+        <div className={`flex shrink-0 justify-between items-center px-8 pt-8 ${mode === "view" ? "mb-6" : "mb-2"}`}>
           <h2 className={`font-bold text-titlefont1 ${mode === "view" ? "text-lg" : "text-[19.8px]"}`}>
             {mode === "view" ? (
               <>
@@ -83,6 +102,7 @@ export default function EstimateModal({ result, nickname, onClose, onSave }: Pro
           </button>
         </div>
 
+        <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto px-8 pb-8">
         {mode === "view" ? (
           <>
             <div className="flex justify-between items-center rounded-xl px-5 py-4 mb-6"
@@ -108,6 +128,88 @@ export default function EstimateModal({ result, nickname, onClose, onSave }: Pro
                 <div className="flex justify-between py-3">
                   <span>{(addons as string[]).map((a) => ADDON_LABEL[a] || a).join(", ")}</span>
                   <span>+{toMan(step4AddonFee).toLocaleString()}만 원 (+{addonPercent}%)</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mb-8 rounded-xl border border-line2 bg-white px-5 py-5">
+              <div className="mb-4">
+                <h3 className="text-sm font-bold text-titlefont1">견적 협상 시뮬레이터</h3>
+                <p className="mt-1 text-xs text-bodyfont3">
+                  클라이언트 예산을 입력하면 가격 대신 조정할 범위를 제안합니다.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  value={targetBudget}
+                  onChange={(e) => setTargetBudget(e.target.value)}
+                  placeholder="예: 3000000"
+                  className="min-w-0 flex-1 rounded-lg border border-line1 bg-bg2 px-4 py-3 text-sm text-titlefont2 placeholder:text-bodyfont4 focus:border-main75 focus:outline-none focus:ring-2 focus:ring-main25"
+                />
+                <button
+                  onClick={handleNegotiation}
+                  disabled={!Number(targetBudget) || negotiationStatus === "loading"}
+                  className="shrink-0 rounded-lg bg-main100 px-4 py-3 text-sm font-semibold text-white transition hover:bg-main75 disabled:bg-line1 disabled:text-bodyfont4"
+                >
+                  {negotiationStatus === "loading" ? "생성 중..." : "협상안 생성"}
+                </button>
+              </div>
+
+              {negotiationStatus === "error" && (
+                <p className="mt-3 text-xs text-red-500">협상안을 생성하지 못했습니다.</p>
+              )}
+
+              {negotiationResult && (
+                <div className="mt-5 flex flex-col gap-4">
+                  <div className="rounded-lg bg-bg2 px-4 py-3 text-sm">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-bodyfont3">예산 차이</span>
+                      <span className="font-bold text-main100">
+                        ₩{toMan(negotiationResult.gapAmount).toLocaleString()}만 원
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-bodyfont2">{negotiationResult.clientMessage}</p>
+                  </div>
+
+                  {negotiationResult.options.map((option) => (
+                    <div
+                      key={option.type}
+                      className={`rounded-xl border px-4 py-3 ${
+                        negotiationResult.recommendedOptionType === option.type
+                          ? "border-main100 bg-main25"
+                          : "border-line2 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-titlefont1">
+                            {option.title}
+                            {negotiationResult.recommendedOptionType === option.type && (
+                              <span className="ml-2 rounded-md bg-main100 px-2 py-0.5 text-xs text-white">
+                                추천
+                              </span>
+                            )}
+                          </p>
+                          <p className="mt-1 text-xs text-bodyfont3">
+                            조정 후 ₩{toMan(option.adjustedAmount).toLocaleString()}만 원 · 절감 ₩{toMan(option.savingAmount).toLocaleString()}만 원
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-xs font-semibold text-bodyfont2">
+                          {option.adjustedScreenCount}화면
+                        </span>
+                      </div>
+                      <ul className="mt-3 flex flex-col gap-1 text-xs text-bodyfont2">
+                        {option.adjustments.map((item) => (
+                          <li key={`${option.type}-${item}`}>- {item}</li>
+                        ))}
+                      </ul>
+                      <p className="mt-3 rounded-lg bg-white/70 px-3 py-2 text-xs leading-5 text-bodyfont2">
+                        {option.clientMessage}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -172,6 +274,7 @@ export default function EstimateModal({ result, nickname, onClose, onSave }: Pro
             </div>
           </>
         )}
+        </div>
 
       </div>
     </div>

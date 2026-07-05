@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, Pencil, Trash2 } from "lucide-react";
 import Topbar from "@/components/topbar";
 import { userAPI, submissionDeleteAPI, careerSaveAPI, estimateAPI } from "@/lib/api";
 
@@ -35,6 +35,26 @@ interface EstimateItem {
   addons: string[];
   addonPercent: number;
   finalAmount: number;
+  negotiationResult?: {
+    status: string;
+    currentAmount: number;
+    targetBudgetAmount: number;
+    gapAmount: number;
+    recommendedOptionType?: string | null;
+    options: {
+      type: string;
+      title: string;
+      adjustedAmount: number;
+      savingAmount: number;
+      gapAfterAdjustment: number;
+      adjustedScreenCount: number;
+      uxEngagement: string;
+      addons: string[];
+      adjustments: string[];
+      clientMessage: string;
+    }[];
+    clientMessage: string;
+  } | null;
   createdAt: string;
   projectName?: string;
 }
@@ -79,6 +99,10 @@ function formatAmount(amount: number): string {
   return `₩${amount}만 원`;
 }
 
+function toMan(won: number): number {
+  return Math.round(won / 10000);
+}
+
 function estimateFallbackName(est: EstimateItem): string {
   return `${est.jobCategoryName} · ${est.screenCount}화면 · ${est.experienceLevelLabel}`;
 }
@@ -88,6 +112,7 @@ export default function CareerPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
   const [estimates, setEstimates] = useState<EstimateItem[]>([]);
+  const [expandedEstimateId, setExpandedEstimateId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -348,8 +373,10 @@ export default function CareerPage() {
                 </Link>
               </div>
             ) : (
-              <ul className="grid grid-cols-2 gap-4">
-                {estimates.map((est) => {
+              <div className="flex flex-col gap-6">
+                {estimates.length > 0 && (
+                  <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    {estimates.map((est) => {
                   // finalAmount는 원(₩) 단위 → 만원 단위로 변환
                   const toMan = (won: number) => Math.round(won / 10000);
 
@@ -367,6 +394,9 @@ export default function CareerPage() {
                     >
                       <div className="flex items-center justify-between gap-4 mb-4">
                         <div className="flex items-center gap-2">
+                          <span className="rounded-md bg-sub50 px-2 py-0.5 text-xs font-bold text-sub175">
+                            기본 견적
+                          </span>
                           <span className="text-base font-bold text-gray-900">
                             {est.projectName || estimateFallbackName(est)}
                           </span>
@@ -405,10 +435,93 @@ export default function CareerPage() {
                           <span className="text-lg font-bold text-main100">₩{toMan(est.finalAmount).toLocaleString()}만 원</span>
                         </div>
                       </div>
+
+                      {est.negotiationResult && (
+                        <>
+                          <button
+                            onClick={() =>
+                              setExpandedEstimateId((prev) =>
+                                prev === est.id ? null : est.id
+                              )
+                            }
+                            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-main100 bg-white py-2.5 text-sm font-semibold text-main100 transition hover:bg-main25"
+                          >
+                            {expandedEstimateId === est.id ? "협상안 접기" : "저장된 협상안 보기"}
+                            <ChevronDown
+                              size={16}
+                              className={`transition-transform ${
+                                expandedEstimateId === est.id ? "rotate-180" : ""
+                              }`}
+                            />
+                          </button>
+
+                          {expandedEstimateId === est.id && (
+                            <div className="mt-4 flex flex-col gap-3 border-t border-gray-300 pt-4">
+                              <div className="rounded-lg bg-white px-4 py-3 text-sm">
+                                <div className="flex justify-between gap-3">
+                                  <span className="text-gray-500">클라이언트 예산</span>
+                                  <span className="font-bold text-gray-900">
+                                    ₩{toMan(est.negotiationResult.targetBudgetAmount).toLocaleString()}만 원
+                                  </span>
+                                </div>
+                                <div className="mt-2 flex justify-between gap-3">
+                                  <span className="text-gray-500">예산 차이</span>
+                                  <span className="font-bold text-main100">
+                                    ₩{toMan(est.negotiationResult.gapAmount).toLocaleString()}만 원
+                                  </span>
+                                </div>
+                                <p className="mt-2 text-xs leading-5 text-gray-500">
+                                  {est.negotiationResult.clientMessage}
+                                </p>
+                              </div>
+
+                              {est.negotiationResult.options.map((option) => (
+                                <div
+                                  key={`${est.id}-${option.type}`}
+                                  className={`rounded-xl border px-4 py-3 ${
+                                    est.negotiationResult?.recommendedOptionType === option.type
+                                      ? "border-main100 bg-main25"
+                                      : "border-gray-200 bg-white"
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <p className="text-sm font-bold text-gray-900">
+                                        {option.title}
+                                        {est.negotiationResult?.recommendedOptionType === option.type && (
+                                          <span className="ml-2 rounded-md bg-main100 px-2 py-0.5 text-xs text-white">
+                                            추천
+                                          </span>
+                                        )}
+                                      </p>
+                                      <p className="mt-1 text-xs text-gray-500">
+                                        조정 후 ₩{toMan(option.adjustedAmount).toLocaleString()}만 원 · 절감 ₩{toMan(option.savingAmount).toLocaleString()}만 원
+                                      </p>
+                                    </div>
+                                    <span className="shrink-0 text-xs font-semibold text-gray-500">
+                                      {option.adjustedScreenCount}화면
+                                    </span>
+                                  </div>
+                                  <ul className="mt-3 flex flex-col gap-1 text-xs text-gray-600">
+                                    {option.adjustments.map((item) => (
+                                      <li key={`${est.id}-${option.type}-${item}`}>- {item}</li>
+                                    ))}
+                                  </ul>
+                                  <p className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-xs leading-5 text-gray-600">
+                                    {option.clientMessage}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
                     </li>
                   );
-                })}
-              </ul>
+                    })}
+                  </ul>
+                )}
+              </div>
             )}
           </div>
         )}
