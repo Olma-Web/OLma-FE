@@ -243,6 +243,21 @@ export const communityAPI = {
       body: JSON.stringify(body),
     }),
 
+  updatePost: (postId: number, body: { title: string; content: string; category: "QNA" | "INFO" | "FREE"; imageUrls?: string[] }) =>
+    fetchAPI(`/v1/community/posts/${postId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
+  deletePost: (postId: number) =>
+    fetchAPI(`/v1/community/posts/${postId}`, { method: "DELETE" }),
+
+  reportPost: (postId: number, body: { reason: "ABUSE" | "FALSE_INFO" | "SPAM" | "ETC"; detail?: string }) =>
+    fetchAPI(`/v1/community/posts/${postId}/reports`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
   likePost: (postId: number) =>
     fetchAPI(`/v1/community/posts/${postId}/likes`, { method: "POST" }),
 
@@ -254,6 +269,27 @@ export const communityAPI = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  updateComment: (commentId: number, body: { content: string }) =>
+    fetchAPI(`/v1/community/comments/${commentId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
+  deleteComment: (commentId: number) =>
+    fetchAPI(`/v1/community/comments/${commentId}`, { method: "DELETE" }),
+
+  reportComment: (commentId: number, body: { reason: "ABUSE" | "FALSE_INFO" | "SPAM" | "ETC"; detail?: string }) =>
+    fetchAPI(`/v1/community/comments/${commentId}/reports`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  likeComment: (commentId: number) =>
+    fetchAPI(`/v1/community/comments/${commentId}/likes`, { method: "POST" }),
+
+  unlikeComment: (commentId: number) =>
+    fetchAPI(`/v1/community/comments/${commentId}/likes`, { method: "DELETE" }),
 
   getMyPosts: (page = 0, size = 20) =>
     fetchAPI(`/v1/community/me/posts?page=${page}&size=${size}`),
