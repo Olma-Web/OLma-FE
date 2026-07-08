@@ -349,14 +349,20 @@ export default function CareerPage() {
                   // finalAmount는 원(₩) 단위 → 만원 단위로 변환
                   const toMan = (won: number) => Math.round(won / 10000);
                   const finalMan = toMan(est.finalAmount);
+                  const baseWon = Math.round(est.finalAmount / (est.uxMultiplier * est.platformMultiplier * (1 + est.addonPercent / 100)));
+                  const basePerScreenMan = toMan(Math.round(baseWon / est.screenCount));
+                  const baseMan = toMan(baseWon);
+                  const afterUxMan = Math.round(baseMan * est.uxMultiplier);
+                  const afterPlatformMan = Math.round(afterUxMan * est.platformMultiplier);
+                  const addonAmountMan = Math.round(afterPlatformMan * (est.addonPercent / 100));
 
                   return (
                     <li
                       key={est.id}
-                      className="rounded-2xl bg-[#F5F5F5] px-6 py-5"
+                      className="rounded-2xl bg-white px-6 py-5 border border-gray-200 shadow-sm"
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex flex-1 flex-col gap-2">
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <div className="flex flex-1 flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <span className="text-base font-bold text-main100">
                               {est.projectName || "프로젝트명 미설정"}
@@ -390,6 +396,28 @@ export default function CareerPage() {
                             삭제하기
                           </button>
                         </div>
+                      </div>
+
+                      {/* 세부 견적 내용 */}
+                      <div className="rounded-lg bg-gray-50 px-4 py-3 text-xs space-y-2 text-gray-700">
+                        <div className="flex justify-between">
+                          <span>기본 작업비</span>
+                          <span>{est.screenCount}화면 x {basePerScreenMan}만 원 = {baseMan}만 원</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>UX 기획 관여도</span>
+                          <span>x{est.uxMultiplier} = {afterUxMan}만 원</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>플랫폼 배수</span>
+                          <span>x{est.platformMultiplier} = {afterPlatformMan}만 원</span>
+                        </div>
+                        {est.addonPercent > 0 && (
+                          <div className="flex justify-between">
+                            <span>추가 옵션</span>
+                            <span>+{addonAmountMan}만 원 (+{est.addonPercent}%)</span>
+                          </div>
+                        )}
                       </div>
                     </li>
                   );

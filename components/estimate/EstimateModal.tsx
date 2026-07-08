@@ -20,6 +20,7 @@ interface Props {
 
 export default function EstimateModal({ result, nickname, onClose, onSave }: Props) {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [showProjectModal, setShowProjectModal] = useState(false);
   const [projectName, setProjectName] = useState("");
 
   const {
@@ -34,6 +35,10 @@ export default function EstimateModal({ result, nickname, onClose, onSave }: Pro
     try {
       await onSave(projectName || undefined);
       setSaveStatus("saved");
+      setTimeout(() => {
+        setShowProjectModal(false);
+        setProjectName("");
+      }, 800);
     } catch {
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 2000);
@@ -80,39 +85,76 @@ export default function EstimateModal({ result, nickname, onClose, onSave }: Pro
           )}
         </div>
 
-        <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            프로젝트명
-          </label>
-          <input
-            type="text"
-            value={projectName}
-            onChange={(e) => setProjectName(e.target.value)}
-            placeholder="예: 2024년 Q1 프로젝트"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-main100 focus:outline-none"
-          />
-        </div>
-
         <div className="flex gap-3">
           <button
-            onClick={handleSave}
-            disabled={saveStatus === "saving" || saveStatus === "saved"}
-            className="flex-1 rounded-2xl bg-gradient-to-r from-main100 to-sub175 py-3 text-sm font-semibold text-white hover:brightness-105 transition-all cursor-pointer disabled:cursor-default disabled:opacity-70"
+            onClick={() => setShowProjectModal(true)}
+            className="flex-1 rounded-2xl bg-gradient-to-r from-main100 to-sub175 py-3 text-sm font-semibold text-white hover:brightness-105 transition-all cursor-pointer"
           >
-            {saveStatus === "saving" && "저장 중..."}
-            {saveStatus === "saved" && "저장되었습니다"}
-            {saveStatus === "error" && "저장 실패"}
-            {saveStatus === "idle" && "내 보관함에 저장하기"}
+            내 보관함에 저장하기
           </button>
           <button
+            onClick={onClose}
             className="flex-1 rounded-2xl border border-main100 py-3 text-sm font-semibold text-main100 hover:bg-main25 transition-all cursor-pointer"
-            disabled
           >
-            이미지로 저장하기
+            닫기
           </button>
         </div>
 
       </div>
+
+      {/* 프로젝트명 입력 모달 */}
+      {showProjectModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-lg">
+            <button
+              onClick={() => {
+                setShowProjectModal(false);
+                setProjectName("");
+              }}
+              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+            <h2 className="text-lg font-bold text-gray-900">견적서 저장하기</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              이 견적서를 저장할 프로젝트 이름을 설정하세요.
+            </p>
+            <div className="mt-4">
+              <label className="block text-sm font-semibold text-gray-700">
+                프로젝트명
+              </label>
+              <input
+                type="text"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                placeholder="예: 2024년 Q1 프로젝트"
+                className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-main100 focus:outline-none"
+              />
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowProjectModal(false);
+                  setProjectName("");
+                }}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saveStatus === "saving"}
+                className="flex-1 rounded-lg bg-main100 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#6a5ee6] disabled:opacity-50"
+              >
+                {saveStatus === "saving" && "저장 중..."}
+                {saveStatus === "saved" && "저장되었습니다"}
+                {saveStatus === "error" && "저장 실패"}
+                {saveStatus === "idle" && "저장하기"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
