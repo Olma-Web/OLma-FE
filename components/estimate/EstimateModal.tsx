@@ -74,7 +74,7 @@ export default function EstimateModal({ result, nickname, onClose, onSave, onSim
   const handleImageSave = async () => {
     const captureTarget = contentRef.current ?? modalRef.current;
     if (!captureTarget) return;
-    const html2canvas = (await import("html2canvas-pro")).default as (element: HTMLElement, options?: Record<string, unknown>) => Promise<HTMLCanvasElement>;
+    const html2canvas = (await import("html2canvas-pro")).default;
     const captureHeight = captureTarget.scrollHeight - (buttonsRef.current?.offsetHeight ?? 0);
     const canvas = await html2canvas(captureTarget, {
       scale: 2,
