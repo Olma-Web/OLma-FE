@@ -48,6 +48,10 @@ export default function EstimateModal({ result, nickname, onClose, onSave, onSim
     try {
       await onSave(projectName.trim() || undefined, negotiationResult?.targetBudgetAmount);
       setSaveStatus("saved");
+      setTimeout(() => {
+        onClose();
+        setProjectName("");
+      }, 800);
     } catch {
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 2000);

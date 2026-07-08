@@ -390,7 +390,7 @@ export default function CareerPage() {
                   return (
                     <li
                       key={est.id}
-                      className="rounded-2xl bg-[#F5F5F5] px-6 py-5"
+                      className="rounded-2xl bg-white px-6 py-5 border border-gray-200 shadow-sm"
                     >
                       <div className="flex items-center justify-between gap-4 mb-4">
                         <div className="flex items-center gap-2">
