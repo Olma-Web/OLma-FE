@@ -132,105 +132,72 @@ export default function Home() {
         </section>
 
         {/* Review Section */}
-        <section className="relative z-10 flex min-h-screen w-full flex-col items-center justify-center bg-gradient-to-b from-neutral-50 to-white px-4 py-16 md:px-8 md:py-24">
-          <div className="mx-auto max-w-6xl w-full">
-            {/* Title */}
-            <div className="absolute right-8 top-20 md:right-16 md:top-24">
-              <h2 className="text-xl font-bold text-main100 md:text-2xl">
-                디자이너들의 실제 이용 후기
+        <section className="relative z-10 flex min-h-screen w-full flex-col items-center justify-center bg-white px-4 py-16 md:px-8 md:py-24">
+          <div className="mx-auto max-w-6xl w-full flex items-center justify-center">
+            <img
+              src="/review-section.png"
+              alt="디자이너들의 실제 이용 후기"
+              className="w-full max-w-5xl h-auto"
+            />
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="relative z-10 w-full bg-[#D6E9FF] bg-[url(/img4.svg)] bg-no-repeat bg-left-top bg-[length:200px_200px] md:bg-[length:300px_300px] px-4 py-12 md:px-8 md:py-16">
+          <div className="flex flex-col items-center justify-center">
+            <div className="mx-auto max-w-6xl w-full flex flex-col items-center justify-center">
+              {/* Title */}
+              <h2 className="mb-8 text-2xl md:text-4xl font-bold text-neutral-900 leading-tight max-w-2xl text-center">
+                지금 바로 시작하세요.
+                <br />
+                디자이너님의 진짜 가치를 확인하세요!
               </h2>
-            </div>
 
-            {/* Left Quote */}
-            <div className="absolute left-4 top-24 text-6xl text-main50 opacity-40 md:left-8 md:top-32 md:text-8xl">
-              "
-            </div>
-
-            {/* Reviews Layout - Overlapping */}
-            <div className="relative h-96 w-full md:h-80">
-              {[
-                {
-                  name: "김민지",
-                  role: "UX/UI 디자이너",
-                  image: "img1",
-                  rating: 5,
-                  text: "Olma 덕분에 제 실력에 맞는 정확한 단가를 알게 됐어요. 클라이언트와의 협상이 훨씬 쉬워졌습니다!",
-                  top: "0",
-                  left: "0",
-                  zIndex: 10,
-                },
-                {
-                  name: "박준우",
-                  role: "UX/UI 디자이너",
-                  image: "img2",
-                  rating: 5,
-                  text: "시장 데이터를 근거로 협상할 수 있으니 나도한디라고. 이제 당신에 자신감이 생겼습니다.",
-                  top: "auto",
-                  bottom: "0",
-                  left: "0",
-                  zIndex: 5,
-                },
-                {
-                  name: "이서연",
-                  role: "UX/UI 디자이너",
-                  image: "img3",
-                  rating: 5,
-                  text: "커뮤니티에서 다른 디자이너들의 실전 경험을 듣고 많은 도움을 받았어요. Olma는 단순 툴 이상이에요.",
-                  top: "50%",
-                  right: "0",
-                  zIndex: 15,
-                },
-              ].map((review, index) => (
-                <div
-                  key={review.name}
-                  className="absolute w-full max-w-sm md:max-w-md"
-                  style={{
-                    top: review.top,
-                    bottom: review.bottom,
-                    left: review.left,
-                    right: review.right,
-                    zIndex: review.zIndex,
-                    transform: review.top === "50%" ? "translateY(-50%)" : undefined,
-                  }}
+              {/* CTA Button and Stats */}
+              <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12">
+                <button
+                  onClick={handleAnalyze}
+                  className="rounded-md bg-main100 px-12 md:px-16 py-3 text-base font-bold text-white shadow-lg hover:brightness-110 transition-all whitespace-nowrap"
                 >
-                  <div className={`flex gap-4 w-full ${index === 1 ? "flex-row-reverse" : ""}`}>
-                    {/* Profile */}
-                    <div className="flex flex-col items-center gap-2 flex-shrink-0">
-                      <img
-                        src={`/${review.image}.png`}
-                        alt={review.name}
-                        className="h-16 w-16 rounded-full border-4 border-main100 object-cover"
-                      />
-                      <h3 className="text-sm font-bold text-titlefont1 text-center">{review.name}</h3>
-                      <p className="text-xs text-bodyfont3 text-center">{review.role}</p>
-                    </div>
+                  무료로 단가 분석하기
+                </button>
 
-                    {/* Review Card */}
-                    <div className="flex-1 bg-[#DFEEFF]/30 p-5 shadow-lg md:p-6 rounded-tl-2xl rounded-bl-md rounded-tr-full rounded-br-full">
-                      <div className="flex gap-1 mb-3">
-                        {Array(review.rating)
-                          .fill(0)
-                          .map((_, i) => (
-                            <span key={i} className="text-base text-yellow-400">
-                              ★
-                            </span>
-                          ))}
+                <div className="flex items-center gap-4">
+                  <div className="flex -space-x-2">
+                    {AVATAR_LABELS.map((label) => (
+                      <div
+                        key={label}
+                        className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-main75 to-main100 text-xs font-bold text-white shadow-md"
+                      >
+                        {label}
                       </div>
-                      <p className="text-sm leading-relaxed text-neutral-600">
-                        {review.text}
-                      </p>
-                    </div>
+                    ))}
+                  </div>
+                  <div className="flex flex-col">
+                    <p className="text-base md:text-lg font-bold text-main100">5,000+</p>
+                    <p className="text-xs text-neutral-600">디자이너 분석 완료</p>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            {/* Right Quote */}
-            <div className="absolute right-4 bottom-20 text-6xl text-main50 opacity-40 md:right-8 md:bottom-32 md:text-8xl">
-              "
+              </div>
             </div>
           </div>
         </section>
+
+        {/* Footer */}
+        <footer className="relative z-10 w-full bg-[#3A3A3A] px-2 py-8 md:px-8 md:py-10">
+            <div className="mx-auto flex flex-col md:flex-row items-center justify-between gap-10">
+              <div className="text-xs md:text-sm text-bodyfont3 text-center md:text-left">
+                <p>정보 비대칭 해소부터 실전 견적 계산까지,</p>
+                <p>디자이너를 위한 시장 단가 분석 서비스</p>
+                <p className="mt-2">© Olma All rights reserved.</p>
+              </div>
+              <img
+                src="/logo.svg"
+                alt="Olma"
+                className="h-9 md:h-10 flex-shrink-0"
+              />
+            </div>
+        </footer>
     </div>
   );
 }
