@@ -11,6 +11,16 @@ function translateError(message: string): string {
   return ERROR_MESSAGES[message.toLowerCase()] ?? message;
 }
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function fetchAPI(endpoint: string, options?: RequestInit) {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
@@ -26,7 +36,7 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
 
   if (!res.ok) {
     const err = await res.json();
-    throw new Error(translateError(err.message));
+    throw new ApiError(translateError(err.message), res.status);
   }
 
   // 204 No Content는 응답 본문이 없음
@@ -92,6 +102,15 @@ export const userAPI = {
     }),
 };
 
+// 기준 데이터
+export const referenceAPI = {
+  getJobCategories: () =>
+    fetchAPI("/v1/reference/job-categories"),
+
+  getExperienceLevels: () =>
+    fetchAPI("/v1/reference/experience-levels"),
+};
+
 // 단가 기록 삭제
 export const submissionDeleteAPI = {
   delete: (submissionId: number) =>
@@ -149,11 +168,27 @@ export const estimateAPI = {
     platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
     addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];
     projectName?: string;
+    negotiationTargetBudgetAmount?: number;
   }) =>
     fetchAPI("/v1/estimates", {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  simulateNegotiation: (body: {
+    experienceLevelId: number;
+    jobCategoryId: number;
+    screenCount: number;
+    uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";
+    platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
+    addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];
+    targetBudgetAmount: number;
+  }) =>
+    fetchAPI("/v1/estimates/negotiation/simulate", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
 };
 
 // 커리어 보관함 저장
@@ -177,6 +212,90 @@ export const careerSaveAPI = {
 
   getById: (id: number) =>
     fetchAPI(`/v1/submissions/${id}`),
+};
+
+// 커뮤니티
+export const communityAPI = {
+  getPosts: (params?: {
+    category?: "QNA" | "INFO" | "FREE";
+    sort?: "LATEST" | "LIKES" | "COMMENTS";
+    jobCategoryId?: number;
+    experienceLevelId?: number;
+    page?: number;
+    size?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.category) qs.set("category", params.category);
+    if (params?.sort) qs.set("sort", params.sort);
+    if (params?.jobCategoryId != null) qs.set("jobCategoryId", String(params.jobCategoryId));
+    if (params?.experienceLevelId != null) qs.set("experienceLevelId", String(params.experienceLevelId));
+    qs.set("page", String(params?.page ?? 0));
+    qs.set("size", String(params?.size ?? 20));
+    return fetchAPI(`/v1/community/posts?${qs.toString()}`);
+  },
+
+  getPost: (postId: number) =>
+    fetchAPI(`/v1/community/posts/${postId}`),
+
+  createPost: (body: { title: string; content: string; category: "QNA" | "INFO" | "FREE"; imageUrls?: string[] }) =>
+    fetchAPI("/v1/community/posts", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  updatePost: (postId: number, body: { title: string; content: string; category: "QNA" | "INFO" | "FREE"; imageUrls?: string[] }) =>
+    fetchAPI(`/v1/community/posts/${postId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
+  deletePost: (postId: number) =>
+    fetchAPI(`/v1/community/posts/${postId}`, { method: "DELETE" }),
+
+  reportPost: (postId: number, body: { reason: "ABUSE" | "FALSE_INFO" | "SPAM" | "ETC"; detail?: string }) =>
+    fetchAPI(`/v1/community/posts/${postId}/reports`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  likePost: (postId: number) =>
+    fetchAPI(`/v1/community/posts/${postId}/likes`, { method: "POST" }),
+
+  unlikePost: (postId: number) =>
+    fetchAPI(`/v1/community/posts/${postId}/likes`, { method: "DELETE" }),
+
+  createComment: (postId: number, body: { content: string; parentCommentId?: number }) =>
+    fetchAPI(`/v1/community/posts/${postId}/comments`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  updateComment: (commentId: number, body: { content: string }) =>
+    fetchAPI(`/v1/community/comments/${commentId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
+  deleteComment: (commentId: number) =>
+    fetchAPI(`/v1/community/comments/${commentId}`, { method: "DELETE" }),
+
+  reportComment: (commentId: number, body: { reason: "ABUSE" | "FALSE_INFO" | "SPAM" | "ETC"; detail?: string }) =>
+    fetchAPI(`/v1/community/comments/${commentId}/reports`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  likeComment: (commentId: number) =>
+    fetchAPI(`/v1/community/comments/${commentId}/likes`, { method: "POST" }),
+
+  unlikeComment: (commentId: number) =>
+    fetchAPI(`/v1/community/comments/${commentId}/likes`, { method: "DELETE" }),
+
+  getMyPosts: (page = 0, size = 20) =>
+    fetchAPI(`/v1/community/me/posts?page=${page}&size=${size}`),
+
+  getMyComments: (page = 0, size = 20) =>
+    fetchAPI(`/v1/community/me/comments?page=${page}&size=${size}`),
 };
 
 // 벤치마크

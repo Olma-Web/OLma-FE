@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Topbar from "@/components/topbar";
 import Image from "next/image";
-import { userAPI, benchmarkAPI, careerSaveAPI } from "@/lib/api";
+import { userAPI, benchmarkAPI, careerSaveAPI, referenceAPI } from "@/lib/api";
 
 interface DistributionBucket {
   bucket: number;
@@ -19,7 +19,11 @@ interface DistributionBucket {
 
 interface BenchmarkData {
   n: number;
+  p10: number | null;
+  p25: number | null;
   median: number | null;
+  p75: number | null;
+  p90: number | null;
   userPercentile: number | null;
   distribution: DistributionBucket[];
 }
@@ -36,8 +40,22 @@ interface SubmissionItem {
   workFormat: string;
   amount: number;
   amountUnit: string;
+  normalizedMonthly: number | null;
   jobCategoryName: string;
+  experienceLevelLabel: string;
   submissionType: string;
+  createdAt?: string;
+}
+
+interface JobCategoryOption {
+  id: number;
+  name: string;
+  children?: JobCategoryOption[] | null;
+}
+
+interface ExperienceLevelOption {
+  id: number;
+  label: string;
 }
 
 interface BarData {
@@ -49,11 +67,303 @@ interface BarData {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, caption }: { label: string; value: string; caption?: string }) {
   return (
     <div className="flex flex-col gap-1 rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
       <p className="text-sm">{label}</p>
       <p className="text-2xl font-bold">{value}</p>
+      {caption && <p className="text-xs text-gray-500">{caption}</p>}
+    </div>
+  );
+}
+
+function getBenchmarkAmount(submission: SubmissionItem | null): number | null {
+  if (!submission) return null;
+  return submission.normalizedMonthly ?? submission.amount;
+}
+
+function flattenJobCategories(categories: JobCategoryOption[]): JobCategoryOption[] {
+  return categories.flatMap((category) => {
+    const children = category.children?.length ? flattenJobCategories(category.children) : [];
+    return children.length ? children : [category];
+  });
+}
+
+function workFormatLabel(format?: string | null) {
+  if (format === "ON_SITE") return "100% 상주";
+  if (format === "REMOTE") return "100% 원격";
+  if (format === "HYBRID") return "상주+원격 혼합";
+  return "전체";
+}
+
+function getReliability(n?: number | null) {
+  if (!n) {
+    return {
+      label: "데이터 없음",
+      tone: "text-gray-500",
+      description: "아직 비교 가능한 시장 데이터가 충분하지 않습니다.",
+    };
+  }
+  if (n >= 50) {
+    return {
+      label: "신뢰도 높음",
+      tone: "text-main100",
+      description: `유사 조건 ${n}건을 기준으로 안정적인 비교가 가능합니다.`,
+    };
+  }
+  if (n >= 15) {
+    return {
+      label: "신뢰도 보통",
+      tone: "text-[#0f766e]",
+      description: `유사 조건 ${n}건을 기준으로 시장 범위를 참고할 수 있습니다.`,
+    };
+  }
+  return {
+    label: "참고용",
+    tone: "text-[#b45309]",
+    description: `유사 조건 ${n}건만 있어 방향성 확인용으로 보는 것이 좋습니다.`,
+  };
+}
+
+function getPositionLabel(percentile: number | null | undefined) {
+  if (percentile == null) return "위치 계산 전";
+  if (percentile >= 90) return "프리미엄 상단";
+  if (percentile >= 75) return "프리미엄 구간";
+  if (percentile >= 50) return "시장 평균 상단";
+  if (percentile >= 25) return "시장 평균 하단";
+  return "저가 진입 구간";
+}
+
+function getMarketInsight(benchmark: BenchmarkData | null, userAmount: number | null) {
+  if (!benchmark || benchmark.userPercentile == null || userAmount == null || !benchmark.median) {
+    return "최근 등록한 단가와 유사 조건의 시장 데이터를 함께 확인해보세요.";
+  }
+
+  const diffPct = Math.round(((userAmount - benchmark.median) / benchmark.median) * 100);
+  const direction = diffPct >= 0 ? "높습니다" : "낮습니다";
+  const absDiff = Math.abs(diffPct);
+  const positionLabel = getPositionLabel(benchmark.userPercentile);
+
+  if (absDiff <= 5) {
+    return `현재 단가는 시장 중앙값과 거의 비슷한 ${positionLabel}입니다. 견적에서는 범위와 산출물 조건을 명확히 제시하는 편이 좋습니다.`;
+  }
+
+  return `현재 단가는 시장 중앙값보다 약 ${absDiff}% ${direction}. ${positionLabel}에 맞춰 단가 근거와 포함 범위를 함께 설명하는 것이 좋습니다.`;
+}
+
+function PercentileBand({
+  benchmark,
+  userAmount,
+}: {
+  benchmark: BenchmarkData | null;
+  userAmount: number | null;
+}) {
+  if (!benchmark?.p10 || !benchmark.p25 || !benchmark.median || !benchmark.p75 || !benchmark.p90) {
+    return null;
+  }
+
+  const range = Math.max(1, benchmark.p90 - benchmark.p10);
+  const markerPct =
+    userAmount != null
+      ? Math.min(100, Math.max(0, ((userAmount - benchmark.p10) / range) * 100))
+      : null;
+
+  const segments = [
+    { label: "하위권", from: benchmark.p10, to: benchmark.p25, className: "bg-[#dbeafe]" },
+    { label: "평균 하단", from: benchmark.p25, to: benchmark.median, className: "bg-[#c7d2fe]" },
+    { label: "평균 상단", from: benchmark.median, to: benchmark.p75, className: "bg-[#ddd6fe]" },
+    { label: "프리미엄", from: benchmark.p75, to: benchmark.p90, className: "bg-[#fde2e2]" },
+  ];
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">시장 포지션 밴드</h2>
+          <p className="mt-1 text-sm text-gray-500">월 환산 단가 기준 분위수 범위입니다.</p>
+        </div>
+        <div className="text-right text-sm">
+          <p className="font-bold text-main100">{getPositionLabel(benchmark.userPercentile)}</p>
+          <p className="text-xs text-gray-500">
+            {benchmark.userPercentile != null ? `${benchmark.userPercentile}% 지점` : "위치 계산 전"}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <div className="relative h-12 overflow-visible rounded-lg border border-gray-200">
+          <div className="grid h-full grid-cols-4 overflow-hidden rounded-lg">
+            {segments.map((segment) => (
+              <div key={segment.label} className={`${segment.className} px-2 py-2`}>
+                <p className="truncate text-xs font-semibold text-gray-700">{segment.label}</p>
+                <p className="truncate text-[11px] text-gray-600">
+                  {segment.from}-{segment.to}만
+                </p>
+              </div>
+            ))}
+          </div>
+          {markerPct != null && (
+            <div
+              className="absolute top-[-7px] flex -translate-x-1/2 flex-col items-center"
+              style={{ left: `${markerPct}%` }}
+            >
+              <span className="rounded-md bg-gray-900 px-2 py-0.5 text-[11px] font-semibold text-white">
+                내 단가
+              </span>
+              <span className="mt-1 h-10 w-0.5 bg-gray-900" />
+            </div>
+          )}
+        </div>
+        <div className="mt-3 grid grid-cols-5 gap-2 text-center text-xs text-gray-500">
+          <span>P10 {benchmark.p10}만</span>
+          <span>P25 {benchmark.p25}만</span>
+          <span>중앙 {benchmark.median}만</span>
+          <span>P75 {benchmark.p75}만</span>
+          <span>P90 {benchmark.p90}만</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BenchmarkExplorer({
+  jobOptions,
+  levelOptions,
+  selectedJobCategoryId,
+  selectedExperienceLevelId,
+  selectedWorkFormat,
+  customAmount,
+  isLoading,
+  onJobChange,
+  onLevelChange,
+  onWorkFormatChange,
+  onAmountChange,
+}: {
+  jobOptions: JobCategoryOption[];
+  levelOptions: ExperienceLevelOption[];
+  selectedJobCategoryId: number | null;
+  selectedExperienceLevelId: number | null;
+  selectedWorkFormat: string;
+  customAmount: string;
+  isLoading: boolean;
+  onJobChange: (value: number) => void;
+  onLevelChange: (value: number | null) => void;
+  onWorkFormatChange: (value: string) => void;
+  onAmountChange: (value: string) => void;
+}) {
+  return (
+    <div className="mt-6 rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">조건 조정 시뮬레이터</h2>
+          <p className="mt-1 text-sm text-gray-500">직무, 경력, 근무 형태, 내 단가를 바꿔 시장 위치를 다시 계산합니다.</p>
+        </div>
+        {isLoading && <span className="text-xs font-semibold text-main100">다시 계산 중...</span>}
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+        <label className="flex flex-col gap-1 text-xs font-semibold text-gray-600">
+          직무
+          <select
+            value={selectedJobCategoryId ?? ""}
+            onChange={(e) => onJobChange(Number(e.target.value))}
+            className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none focus:border-main100"
+          >
+            {jobOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-semibold text-gray-600">
+          경력
+          <select
+            value={selectedExperienceLevelId ?? ""}
+            onChange={(e) => onLevelChange(e.target.value ? Number(e.target.value) : null)}
+            className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none focus:border-main100"
+          >
+            <option value="">전체 경력</option>
+            {levelOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-semibold text-gray-600">
+          근무 형태
+          <select
+            value={selectedWorkFormat}
+            onChange={(e) => onWorkFormatChange(e.target.value)}
+            className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none focus:border-main100"
+          >
+            <option value="">전체 형태</option>
+            <option value="ON_SITE">100% 상주</option>
+            <option value="REMOTE">100% 원격</option>
+            <option value="HYBRID">상주+원격 혼합</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-semibold text-gray-600">
+          내 월 환산 단가
+          <input
+            type="number"
+            min="1"
+            value={customAmount}
+            onChange={(e) => onAmountChange(e.target.value)}
+            placeholder="예: 450"
+            className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none focus:border-main100"
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function TrendCard({ submissions }: { submissions: SubmissionItem[] }) {
+  const values = submissions
+    .map((item) => getBenchmarkAmount(item))
+    .filter((value): value is number => value != null);
+
+  if (values.length === 0) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
+        <h2 className="text-base font-bold text-gray-900">내 단가 추세</h2>
+        <p className="mt-2 text-sm text-gray-500">단가 기록을 추가하면 변화 추세를 확인할 수 있습니다.</p>
+      </div>
+    );
+  }
+
+  const latest = values[0];
+  const previous = values[1] ?? null;
+  const diffPct = previous ? Math.round(((latest - previous) / previous) * 100) : null;
+  const recentAverage = Math.round(values.slice(0, 3).reduce((sum, value) => sum + value, 0) / Math.min(values.length, 3));
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
+      <h2 className="text-base font-bold text-gray-900">내 단가 추세</h2>
+      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-lg bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-500">최근 변화</p>
+          <p className={`mt-1 text-lg font-bold ${diffPct != null && diffPct >= 0 ? "text-main100" : "text-[#b45309]"}`}>
+            {diffPct != null ? `${diffPct >= 0 ? "+" : ""}${diffPct}%` : "-"}
+          </p>
+        </div>
+        <div className="rounded-lg bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-500">최근 3건 평균</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">{recentAverage}만</p>
+        </div>
+        <div className="rounded-lg bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-500">최고 기록</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">{max}만</p>
+        </div>
+        <div className="rounded-lg bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-500">최저 기록</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">{min}만</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -267,7 +577,15 @@ export default function MarketDashboard() {
   const [benchmark, setBenchmark] = useState<BenchmarkData | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [latestSubmission, setLatestSubmission] = useState<SubmissionItem | null>(null);
+  const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
+  const [jobOptions, setJobOptions] = useState<JobCategoryOption[]>([]);
+  const [levelOptions, setLevelOptions] = useState<ExperienceLevelOption[]>([]);
+  const [selectedJobCategoryId, setSelectedJobCategoryId] = useState<number | null>(null);
+  const [selectedExperienceLevelId, setSelectedExperienceLevelId] = useState<number | null>(null);
+  const [selectedWorkFormat, setSelectedWorkFormat] = useState("");
+  const [customAmount, setCustomAmount] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isBenchmarkLoading, setIsBenchmarkLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [showProjectModal, setShowProjectModal] = useState(false);
@@ -286,14 +604,24 @@ export default function MarketDashboard() {
       }
 
       try {
-        const [profile, submissions] = await Promise.all([
+        const [profile, submissionItems, categoryTree, experienceLevels] = await Promise.all([
           userAPI.getProfile(userId),
           userAPI.getSubmissions(userId),
+          referenceAPI.getJobCategories(),
+          referenceAPI.getExperienceLevels(),
         ]);
 
-        const latest: SubmissionItem | null = submissions?.[0] ?? null;
+        const latest: SubmissionItem | null = submissionItems?.[0] ?? null;
+        const flattenedCategories = flattenJobCategories(categoryTree ?? []);
         setUserProfile(profile);
         setLatestSubmission(latest);
+        setSubmissions(submissionItems ?? []);
+        setJobOptions(flattenedCategories);
+        setLevelOptions(experienceLevels ?? []);
+        setSelectedJobCategoryId(profile.jobCategoryId ?? flattenedCategories[0]?.id ?? null);
+        setSelectedExperienceLevelId(profile.experienceLevelId ?? null);
+        setSelectedWorkFormat(latest?.workFormat ?? "");
+        setCustomAmount(getBenchmarkAmount(latest)?.toString() ?? "");
 
         // localStorage에 저장된 ID 목록 중 하나라도 서버에 존재하면 "저장됨"
         const raw = localStorage.getItem("careerSavedIds");
@@ -311,21 +639,6 @@ export default function MarketDashboard() {
 
         if (!profile.jobCategoryId) {
           setBenchmark(null);
-          setIsLoading(false);
-          return;
-        }
-
-        try {
-          const result = await benchmarkAPI.get({
-            jobCategoryId: profile.jobCategoryId,
-            experienceLevelId: profile.experienceLevelId ?? undefined,
-            workFormat: latest?.workFormat ?? undefined,
-            userAmount: latest?.amount ?? undefined,
-          });
-          setBenchmark(result);
-        } catch {
-          // 벤치마크 데이터 없거나 서버 오류 시 차트 없이 대시보드 표시
-          setBenchmark(null);
         }
       } catch (err) {
         setError(
@@ -337,6 +650,30 @@ export default function MarketDashboard() {
     };
     load();
   }, []);
+
+  useEffect(() => {
+    if (isLoading || !selectedJobCategoryId) return;
+
+    const loadBenchmark = async () => {
+      setIsBenchmarkLoading(true);
+      try {
+        const parsedAmount = Number(customAmount);
+        const result = await benchmarkAPI.get({
+          jobCategoryId: selectedJobCategoryId,
+          experienceLevelId: selectedExperienceLevelId ?? undefined,
+          workFormat: selectedWorkFormat || undefined,
+          userAmount: parsedAmount > 0 ? parsedAmount : undefined,
+        });
+        setBenchmark(result);
+      } catch {
+        setBenchmark(null);
+      } finally {
+        setIsBenchmarkLoading(false);
+      }
+    };
+
+    loadBenchmark();
+  }, [customAmount, isLoading, selectedExperienceLevelId, selectedJobCategoryId, selectedWorkFormat]);
 
   const handleSave = () => {
     if (saveStatus === "saving" || saveStatus === "saved") return;
@@ -395,17 +732,27 @@ export default function MarketDashboard() {
 
   // ── Derived values ──────────────────────────────────────────────────────────
 
+  const selectedJobLabel =
+    jobOptions.find((option) => option.id === selectedJobCategoryId)?.name ?? userProfile?.jobCategoryName;
+  const selectedLevelLabel =
+    levelOptions.find((option) => option.id === selectedExperienceLevelId)?.label ?? "전체 경력";
+  const parsedCustomAmount = Number(customAmount);
+  const userBenchmarkAmount = parsedCustomAmount > 0 ? parsedCustomAmount : getBenchmarkAmount(latestSubmission);
+  const reliability = getReliability(benchmark?.n);
+  const marketInsight = getMarketInsight(benchmark, userBenchmarkAmount);
+
   const tags = [
-    userProfile?.jobCategoryName,
-    userProfile?.experienceLevelLabel,
-    latestSubmission?.amountUnit === "MONTHLY" ? "월 단위 계약" : "건별 외주 계약",
+    selectedJobLabel,
+    selectedLevelLabel,
+    workFormatLabel(selectedWorkFormat),
+    latestSubmission?.amountUnit === "TOTAL" ? "월 환산 비교" : "월 단가 비교",
   ].filter(Boolean) as string[];
 
   const barData: BarData[] = (benchmark?.distribution ?? []).map((b) => {
     const userInBucket =
-      latestSubmission != null &&
-      latestSubmission.amount >= b.rangeStart &&
-      latestSubmission.amount < b.rangeEnd;
+      userBenchmarkAmount != null &&
+      userBenchmarkAmount >= b.rangeStart &&
+      userBenchmarkAmount < b.rangeEnd;
     return {
       range: `${b.rangeStart}-${b.rangeEnd}`,
       value: Number(b.count),
@@ -425,8 +772,8 @@ export default function MarketDashboard() {
   const userBucket = barData.find((b) => b.isUser);
   const userPosition = userBucket
     ? `${userBucket.range}만원`
-    : latestSubmission
-      ? `${latestSubmission.amount}만원`
+    : userBenchmarkAmount != null
+      ? `${userBenchmarkAmount}만원`
       : "-";
 
   const getPercentileText = (percentile: number): string => {
@@ -447,8 +794,8 @@ export default function MarketDashboard() {
     <div className="flex min-h-screen flex-col bg-gray-50 font-sans">
       <Topbar />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10 md:px-8">
-        <h1 className="text-2xl font-extrabold text-gray-900 md:text-3xl">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 md:px-6">
+        <h1 className="text-2xl font-extrabold text-gray-900">
           시장 단가 분석 대시보드
         </h1>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
@@ -474,26 +821,54 @@ export default function MarketDashboard() {
           </button>
         </div>
 
+        <BenchmarkExplorer
+          jobOptions={jobOptions}
+          levelOptions={levelOptions}
+          selectedJobCategoryId={selectedJobCategoryId}
+          selectedExperienceLevelId={selectedExperienceLevelId}
+          selectedWorkFormat={selectedWorkFormat}
+          customAmount={customAmount}
+          isLoading={isBenchmarkLoading}
+          onJobChange={setSelectedJobCategoryId}
+          onLevelChange={setSelectedExperienceLevelId}
+          onWorkFormatChange={setSelectedWorkFormat}
+          onAmountChange={setCustomAmount}
+        />
+
         {/* Stat cards */}
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatCard
-            label="시장 평균 단가"
+            label="시장 중앙 단가"
             value={benchmark?.median != null ? `${benchmark.median}만원` : "-"}
+            caption="유사 조건 월 환산 기준"
           />
           <StatCard
-            label="데이터 샘플 수"
+            label="데이터 신뢰도"
             value={benchmark?.n != null ? `${benchmark.n}건` : "-"}
+            caption={reliability.label}
           />
-          <StatCard label="내 위치" value={userPosition} />
+          <StatCard
+            label="내 월 환산 단가"
+            value={userPosition}
+            caption={latestSubmission?.amountUnit === "TOTAL" ? "총액을 기간 기준으로 환산" : "입력 월 단가 기준"}
+          />
         </div>
 
         {/* Insight banner */}
         <div className="mt-5 rounded-xl bg-gradient-to-r from-main25 to-[#DAEDFF] px-5 py-4 text-sm text-bodyfont1">
           {userProfile?.nickname}님과 연차가 비슷한{" "}
-          {userProfile?.jobCategoryName ?? ""} 디자이너들 중,{" "}
+          {selectedJobLabel ?? ""} 디자이너들 중,{" "}
           {userProfile?.nickname}님의 단가는{" "}
           <span className="font-bold text-main100">{percentile}</span> 입니다.
-          협상의 여지가 있어 보여요!
+          <span className="ml-2">{marketInsight}</span>
+        </div>
+
+        <div className="mt-5">
+          <PercentileBand benchmark={benchmark} userAmount={userBenchmarkAmount} />
+        </div>
+
+        <div className="mt-5">
+          <TrendCard submissions={submissions} />
         </div>
 
         {/* Bar chart */}

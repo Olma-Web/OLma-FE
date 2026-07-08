@@ -15,7 +15,10 @@ export default function OnboardingPage() {
   const steps = getSteps(answers[1] as string, answers[6] as string);
   const totalSteps = steps.length;
   const step = steps[currentStep];
-  const progress = Math.round(((currentStep + 1) / totalSteps) * 100);
+  const progressDenominator = answers[1] && !answers[6]
+    ? getSteps(answers[1] as string, "건별 외주 계약").length
+    : totalSteps;
+  const progress = Math.round(((currentStep + 1) / progressDenominator) * 100);
   const isLastStep = currentStep === totalSteps - 1;
 
   const isSelected = (option: string) =>
@@ -26,15 +29,21 @@ export default function OnboardingPage() {
   const handleSelect = (option: string) => {
     if (step.type === "multi") {
       const current = (answers[step.id] as string[]) ?? [];
-      setAnswers((prev) => ({
-        ...prev,
-        [step.id]: current.includes(option)
-          ? current.filter((v) => v !== option)
-          : [...current, option],
-      }));
+      let next: string[];
+      if (option === "없음") {
+        next = current.includes("없음") ? [] : ["없음"];
+      } else {
+        const withoutNone = current.filter((v) => v !== "없음");
+        next = withoutNone.includes(option)
+          ? withoutNone.filter((v) => v !== option)
+          : [...withoutNone, option];
+      }
+      setAnswers((prev) => ({ ...prev, [step.id]: next }));
     } else {
-      setAnswers((prev) => ({ ...prev, [step.id]: option }));
-      if (currentStep < totalSteps - 1) {
+      const newAnswers = { ...answers, [step.id]: option };
+      setAnswers(newAnswers);
+      const newSteps = getSteps(newAnswers[1] as string, newAnswers[6] as string);
+      if (currentStep < newSteps.length - 1) {
         setTimeout(() => setCurrentStep((s) => s + 1), 200);
       }
     }
@@ -79,7 +88,13 @@ export default function OnboardingPage() {
     }
 
     try {
-      await submissionAPI.submit(body);
+      const result = await submissionAPI.submit(body);
+
+      // 커리어 관리 > 내 단가 기록 탭에 뜨도록 저장된 ID 목록에 추가
+      const raw = localStorage.getItem("careerSavedIds");
+      const ids: number[] = raw ? JSON.parse(raw) : [];
+      if (!ids.includes(result.id)) ids.push(result.id);
+      localStorage.setItem("careerSavedIds", JSON.stringify(ids));
 
       // submission 후 user profile에 jobCategory/experienceLevel 저장
       // (백엔드 submission 저장이 user profile을 자동 업데이트하지 않으므로 별도 호출 필요)
@@ -104,6 +119,13 @@ export default function OnboardingPage() {
     }
   };
 
+  const handleSkip = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      window.location.href = "/dashboard";
+    }, 1500);
+  };
+
   return (
     <div className="relative isolate flex min-h-screen w-full flex-col font-sans">
       {/* 배경 */}
@@ -118,10 +140,10 @@ export default function OnboardingPage() {
 
       {/* 콘텐츠 */}
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4">
-        <div className="w-full max-w-xl">
+        <div className="w-full max-w-[761px]">
 
           {/* 진행바 */}
-          <div className="mb-6">
+          <div className="mb-6 px-12">
             <div className="flex justify-between text-sm text-bodyfont3 mb-1">
               <span>{currentStep + 1} / {totalSteps}</span>
               <span className="text-main100">{progress}%</span>
@@ -134,10 +156,8 @@ export default function OnboardingPage() {
             </div>
           </div>
 
-          {/* 카드 + 양옆 화살표 */}
+          {/* 질문 카드 */}
           <div className="flex items-center gap-4">
-
-            {/* 왼쪽 화살표 */}
             <button
               onClick={goPrev}
               disabled={currentStep === 0}
@@ -146,24 +166,31 @@ export default function OnboardingPage() {
               <ChevronLeft size={32} />
             </button>
 
-            {/* 질문 카드 */}
-            <div className="flex-1 rounded-2xl bg-white px-8 py-8 shadow-lg">
+            <div className="flex-1 rounded-2xl bg-white px-[38px] py-[38px] shadow-lg">
               {isLoading ? (
                 <div className="flex flex-col items-center gap-4 py-8">
                   <div className="h-10 w-10 animate-spin rounded-full border-4 border-main25 border-t-main100" />
-                  <p className="text-lg font-bold text-main100">위치 분석중...</p>
-                  <p className="text-sm text-bodyfont3">User 님의 단가 위치를 확인하고 있어요</p>
+                  <p className="text-xl font-bold text-main100">위치 분석중...</p>
+                  <p className="text-base text-bodyfont3">{localStorage.getItem("nickname") ?? "User"} 님의 단가 위치를 확인하고 있어요</p>
                 </div>
               ) : (
                 <>
-                  <p className="text-lg font-bold text-main100 mb-6">{step.question}</p>
+                  <p className={`text-2xl font-semibold text-main100 ${step.type === "multi" || step.description ? "mb-2" : "mb-6"}`}>
+                    {step.question}
+                  </p>
+                  {step.type === "multi" && (
+                    <p className="text-xs text-bodyfont4 mb-4">해당하는 항목을 모두 선택하세요</p>
+                  )}
+                  {step.description && (
+                    <p className="text-sm text-black mb-[18px]">{step.description}</p>
+                  )}
 
                   <div className="flex flex-col gap-3">
                     {step.options?.map((option) => (
                       <button
                         key={option}
                         onClick={() => handleSelect(option)}
-                        className={`w-full text-left px-5 py-3 rounded-xl border text-sm transition-all cursor-pointer ${
+                        className={`w-full text-left px-5 py-3.5 rounded-xl border text-base transition-all cursor-pointer ${
                           isSelected(option)
                             ? "bg-main25 border-main100 text-main100"
                             : "bg-white border-line1 text-titlefont2"
@@ -174,18 +201,24 @@ export default function OnboardingPage() {
                     ))}
 
                     {step.type === "text" && (
-                      <div className="flex flex-col gap-1">
-                        <input
-                          type="number"
-                          value={(answers[step.id] as string) ?? ""}
-                          onChange={(e) =>
-                            setAnswers((prev) => ({ ...prev, [step.id]: e.target.value }))
-                          }
-                          placeholder={step.placeholder}
-                          className="w-full rounded-lg border border-line1 bg-bg2 px-5 py-3 text-sm text-titlefont2 placeholder:text-bodyfont4 focus:outline-none focus:ring-2 focus:border-main75 focus:ring-main25 transition-all"
-                        />
+                      <div className="flex flex-col gap-[4.4px]">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            value={(answers[step.id] as string) ?? ""}
+                            onChange={(e) =>
+                              setAnswers((prev) => ({ ...prev, [step.id]: e.target.value }))
+                            }
+                            placeholder={step.placeholder}
+                            className="flex-1 rounded-lg border border-line1 bg-bg2 px-4 py-3.5 text-base text-titlefont2 placeholder:text-bodyfont4 focus:outline-none focus:ring-2 focus:border-main75 focus:ring-main25 transition-all"
+                          />
+                          <span className="text-base text-titlefont2">만 원</span>
+                        </div>
                         {step.hint && (
-                          <p className="text-right text-xs text-bodyfont4 cursor-pointer hover:text-main100 transition-colors">
+                          <p
+                            onClick={handleSkip}
+                            className="text-right text-sm text-bodyfont4 cursor-pointer hover:text-main100 transition-colors"
+                          >
                             {step.hint}
                           </p>
                         )}
@@ -196,10 +229,9 @@ export default function OnboardingPage() {
               )}
             </div>
 
-            {/* 오른쪽 화살표 */}
             <button
               onClick={goNext}
-              disabled={!hasAnswer || isLastStep || step.type === "text" || step.type === "multi"}
+              disabled={!(step.type === "single" && hasAnswer && !isLastStep)}
               className="text-bodyfont3 hover:text-main100 transition-colors disabled:opacity-30"
             >
               <ChevronRight size={32} />
@@ -207,25 +239,26 @@ export default function OnboardingPage() {
 
           </div>
 
-          {/* 다중선택 다음으로 버튼 / 텍스트 분석하기 버튼 */}
-          {!isLoading && (
+          {/* 하단 버튼 영역 */}
+          {!isLoading && step.type === "multi" && hasAnswer && (
             <div className="flex justify-center mt-6">
-              {step.type === "multi" && hasAnswer && (
-                <button
-                  onClick={goNext}
-                  className="rounded-xl bg-gradient-to-r from-main100 to-sub175 px-8 py-3 text-sm font-semibold text-white hover:brightness-105 transition-all cursor-pointer"
-                >
-                  다음으로
-                </button>
-              )}
-              {step.type === "text" && hasAnswer && isLastStep && (
-                <button
-                  onClick={handleSubmit}
-                  className="rounded-xl bg-gradient-to-r from-main100 to-sub175 px-8 py-3 text-sm font-semibold text-white hover:brightness-105 transition-all cursor-pointer"
-                >
-                  분석하기
-                </button>
-              )}
+              <button
+                onClick={goNext}
+                className="rounded-xl bg-gradient-to-r from-main100 to-sub175 px-[42px] py-3.5 text-base font-semibold text-white hover:brightness-105 transition-all cursor-pointer"
+              >
+                다음으로
+              </button>
+            </div>
+          )}
+
+          {!isLoading && step.type === "text" && hasAnswer && isLastStep && (
+            <div className="flex justify-center mt-6">
+              <button
+                onClick={handleSubmit}
+                className="rounded-xl bg-gradient-to-r from-main100 to-sub175 px-[42px] py-3.5 text-base font-semibold text-white hover:brightness-105 transition-all cursor-pointer"
+              >
+                분석하기
+              </button>
             </div>
           )}
 

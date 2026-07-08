@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { userAPI } from "@/lib/api";
+import { userAPI, ApiError } from "@/lib/api";
 import UserDropdown from "@/components/ui/UserDropdown";
 
 const NAV_ITEMS = [
@@ -44,14 +44,18 @@ export default function Topbar() {
       .then((data) => {
         if (data?.nickname) setNickname(data.nickname);
       })
-      .catch(() => {
-        setIsLoggedIn(false);
+      .catch((err) => {
+        // 인증 만료(401)일 때만 로그아웃 처리 - 일시적 서버/네트워크 오류로는 로그인 상태를 풀지 않음
+        if (err instanceof ApiError && err.status === 401) {
+          setIsLoggedIn(false);
+        }
       });
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("userId");
+    localStorage.removeItem("careerSavedIds");
     setIsLoggedIn(false);
     router.push("/");
   };
@@ -80,7 +84,7 @@ export default function Topbar() {
       >
         <ul className="flex items-center gap-5 whitespace-nowrap text-sm text-white lg:gap-8 lg:text-[15px]">
           {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <li key={item.label}>
                 {isLoggedIn ? (

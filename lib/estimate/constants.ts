@@ -23,6 +23,29 @@ export const DELIVERABLE_OPTIONS = [
   { label: "Figma 등 원본 소스 전송", bonus: 0.2 },
 ] as const;
 
+export type EstimateNegotiationOption = {
+  type: string;
+  title: string;
+  adjustedAmount: number;
+  savingAmount: number;
+  gapAfterAdjustment: number;
+  adjustedScreenCount: number;
+  uxEngagement: string;
+  addons: string[];
+  adjustments: string[];
+  clientMessage: string;
+};
+
+export type EstimateNegotiationResult = {
+  status: "NO_DISCOUNT_NEEDED" | "ADJUSTMENT_REQUIRED" | string;
+  currentAmount: number;
+  targetBudgetAmount: number;
+  gapAmount: number;
+  recommendedOptionType?: string | null;
+  options: EstimateNegotiationOption[];
+  clientMessage: string;
+};
+
 export type EstimateResult = {
   jobCategoryName: string;
   experienceLevelLabel: string;
@@ -39,4 +62,5 @@ export type EstimateResult = {
   step4AddonFee: number;
   addons: string[];
   finalAmount: number;
+  negotiationResult?: EstimateNegotiationResult | null;
 };
