@@ -100,6 +100,11 @@ export const userAPI = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
+
+  withdraw: () =>
+    fetchAPI("/v1/users/me", {
+      method: "DELETE",
+    }),
 };
 
 // 기준 데이터
