@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { authAPI } from "@/lib/api";
 import { PasswordInput } from "@/components/ui/PassWordInput";
+import { PasswordChecklist, SPECIAL_CHAR_REGEX, isPasswordValid } from "@/components/ui/PasswordChecklist";
 
 // --- validation ---
 const isValidNickname = (v: string) => /^[a-zA-Z0-9가-힣\-_.]{2,10}$/.test(v);
@@ -16,7 +17,7 @@ const validatePassword = (v: string) => {
   if (v.length < 8) return "비밀번호는 8자리 이상이어야 합니다.";
   if (!/[a-zA-Z]/.test(v)) return "영문자를 1자 이상 포함해야 합니다.";
   if (!/[0-9]/.test(v)) return "숫자를 1자 이상 포함해야 합니다.";
-  if (!/[^a-zA-Z0-9]/.test(v)) return "특수문자를 1자 이상 포함해야 합니다.";
+  if (!SPECIAL_CHAR_REGEX.test(v)) return "특수문자를 1자 이상 포함해야 합니다.";
   return "";
 };
 
@@ -45,6 +46,12 @@ export default function SignupPage() {
   };
 
   const isActive = Object.values(form).every((v) => v.length > 0) && agreed;
+
+  const passwordConfirmError =
+    form.passwordConfirm && form.passwordConfirm !== form.password
+      ? "비밀번호가 일치하지 않습니다."
+      : "";
+  const isPasswordConfirmValid = form.passwordConfirm.length > 0 && form.passwordConfirm === form.password;
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -105,28 +112,31 @@ export default function SignupPage() {
               </div>
 
               {/* 비밀번호 */}
-              <PasswordInput
-                label="비밀번호"
-                hint="영문, 숫자, 특수문자 조합 8자리 이상"
-                value={form.password}
-                onChange={set("password")}
-                onBlur={() => setErrors((err) => ({ ...err, password: validatePassword(form.password) }))}
-                placeholder="비밀번호를 입력하세요"
-                show={show.password}
-                onToggle={() => setShow((s) => ({ ...s, password: !s.password }))}
-                error={errors.password}
-              />
+              <div className="flex flex-col gap-2">
+                <PasswordInput
+                  label="비밀번호"
+                  value={form.password}
+                  onChange={set("password")}
+                  onBlur={() => setErrors((err) => ({ ...err, password: validatePassword(form.password) }))}
+                  placeholder="비밀번호를 입력하세요"
+                  show={show.password}
+                  onToggle={() => setShow((s) => ({ ...s, password: !s.password }))}
+                  error={errors.password}
+                  success={isPasswordValid(form.password)}
+                />
+                <PasswordChecklist password={form.password} />
+              </div>
 
               {/* 비밀번호 확인 */}
               <PasswordInput
                 label="비밀번호 확인"
                 value={form.passwordConfirm}
                 onChange={set("passwordConfirm")}
-                onBlur={() => setErrors((err) => ({ ...err, passwordConfirm: validatePasswordConfirm(form.passwordConfirm, form.password) }))}
                 placeholder="비밀번호를 입력하세요"
                 show={show.passwordConfirm}
                 onToggle={() => setShow((s) => ({ ...s, passwordConfirm: !s.passwordConfirm }))}
-                error={errors.passwordConfirm}
+                error={passwordConfirmError}
+                success={isPasswordConfirmValid}
               />
 
               {/* 닉네임 */}

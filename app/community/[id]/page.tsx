@@ -22,6 +22,8 @@ interface Comment {
   parentCommentId: number | null;
   content: string;
   author: Author;
+  likeCount: number;
+  likedByMe: boolean;
   createdAt: string;
   replies: Comment[];
 }
@@ -33,6 +35,8 @@ interface RawComment {
   parentCommentId: number | null;
   content: string;
   author: Author;
+  likeCount: number;
+  likedByMe: boolean;
   createdAt: string;
   replies?: RawComment[];
 }
@@ -256,8 +260,8 @@ function CommentItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(comment.content);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
+  const [isLiked, setIsLiked] = useState(comment.likedByMe);
+  const [likeCount, setLikeCount] = useState(comment.likeCount);
   const [isLiking, setIsLiking] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const isReplying = replyingTo === comment.id;
