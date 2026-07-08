@@ -84,7 +84,7 @@ export default function Topbar() {
       >
         <ul className="flex items-center gap-5 whitespace-nowrap text-sm text-white lg:gap-8 lg:text-[15px]">
           {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <li key={item.label}>
                 {isLoggedIn ? (

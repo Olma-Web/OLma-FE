@@ -12,11 +12,19 @@ const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
   { value: "FREE", label: "자유/푸념" },
 ];
 
-export default function WriteForm() {
+interface WriteFormProps {
+  postId?: number;
+  initialTitle?: string;
+  initialContent?: string;
+  initialCategory?: Category;
+}
+
+export default function WriteForm({ postId, initialTitle = "", initialContent = "", initialCategory = "FREE" }: WriteFormProps) {
   const router = useRouter();
-  const [category, setCategory] = useState<Category>("FREE");
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
+  const isEdit = postId != null;
+  const [category, setCategory] = useState<Category>(initialCategory);
+  const [title, setTitle] = useState(initialTitle);
+  const [content, setContent] = useState(initialContent);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -27,12 +35,21 @@ export default function WriteForm() {
     setIsSubmitting(true);
     setError("");
     try {
-      const post = await communityAPI.createPost({
-        title: title.trim(),
-        content: content.trim(),
-        category,
-      });
-      router.push(`/community/${post.id}`);
+      if (isEdit) {
+        await communityAPI.updatePost(postId, {
+          title: title.trim(),
+          content: content.trim(),
+          category,
+        });
+        router.push(`/community/${postId}`);
+      } else {
+        const post = await communityAPI.createPost({
+          title: title.trim(),
+          content: content.trim(),
+          category,
+        });
+        router.push(`/community/${post.id}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "게시글 등록에 실패했어요.");
       setIsSubmitting(false);
@@ -89,7 +106,7 @@ export default function WriteForm() {
             : "bg-line1 text-bodyfont4 cursor-not-allowed"
         }`}
       >
-        {isSubmitting ? "등록 중..." : "등록하기"}
+        {isEdit ? (isSubmitting ? "저장 중..." : "저장하기") : (isSubmitting ? "등록 중..." : "등록하기")}
       </button>
     </div>
   );
