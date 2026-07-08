@@ -235,25 +235,49 @@ export default function EstimateModal({ result, nickname, onClose, onSave, onSim
           </>
         ) : (
           <>
-            <p className="text-sm text-bodyfont3 mb-6">
-              나중에 쉽게 찾을 수 있도록 이 견적서에 이름을 붙여주세요
-            </p>
-
             <div className="mb-8">
-              <label className="block text-sm font-bold text-gray-700 mb-2">
-                프로젝트명
-              </label>
-              <input
-                type="text"
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                placeholder="예: 쇼핑몰 앱 리디자인"
-                className="w-full rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-main100 mb-5"
-              />
-              <div className="w-full rounded-lg bg-gray-100 px-4 py-3 text-sm text-gray-500 flex flex-col gap-1">
-                <span><span className="font-medium text-gray-700">플랫폼:</span> {platformLabel}</span>
-                <span><span className="font-medium text-gray-700">화면 수:</span> {screenCount}개</span>
-                <span><span className="font-medium text-gray-700">견적 금액:</span> <span className="font-medium text-gray-700">{toMan(finalAmount).toLocaleString()}</span>만원</span>
+              <h3 className="text-xl font-bold text-titlefont1 mb-2">견적서를 저장하세요</h3>
+              <p className="text-sm text-bodyfont3">
+                이 분석 결과를 나중에 찾을 수 있도록 이름을 붙여 커리어 보관함에 옮겨두세요.
+              </p>
+            </div>
+
+            <div className="mb-8 rounded-xl bg-gray-50 px-6 py-6">
+              <div className="mb-6">
+                <label className="block text-xs font-bold text-titlefont1 mb-3">
+                  프로젝트명
+                </label>
+                <div className="flex gap-2 items-start">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-main100 flex items-center justify-center text-white text-xs font-bold">
+                    📋
+                  </div>
+                  <input
+                    type="text"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    placeholder="프로젝트명 입력"
+                    className="flex-1 rounded-lg bg-white border border-line1 px-4 py-3 text-sm text-titlefont2 placeholder:text-bodyfont4 focus:outline-none focus:ring-2 focus:ring-main100"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-bodyfont3">직군</span>
+                  <span className="font-medium text-titlefont1">{result.jobCategoryName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-bodyfont3">경력</span>
+                  <span className="font-medium text-titlefont1">{result.experienceLevelLabel}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-bodyfont3">플랫폼</span>
+                  <span className="font-medium text-titlefont1">{platformLabel}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-bodyfont3">내 단가</span>
+                  <span className="font-medium text-titlefont1">₩{toMan(finalAmount).toLocaleString()}만 원</span>
+                </div>
               </div>
             </div>
 
@@ -261,14 +285,14 @@ export default function EstimateModal({ result, nickname, onClose, onSave, onSim
               <button
                 onClick={() => setMode("view")}
                 disabled={saveStatus === "saving"}
-                className="flex-1 rounded-2xl border border-gray-300 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all cursor-pointer disabled:cursor-default disabled:opacity-50"
+                className="flex-1 rounded-2xl border border-line1 py-3 text-sm font-semibold text-titlefont1 hover:bg-gray-50 transition-all cursor-pointer disabled:cursor-default disabled:opacity-50"
               >
-                이전으로
+                취소
               </button>
               <button
                 onClick={handleSave}
                 disabled={saveStatus === "saving" || saveStatus === "saved"}
-                className="flex-1 rounded-2xl bg-gradient-to-r from-main100 to-sub175 py-3 text-sm font-semibold text-white hover:brightness-105 transition-all cursor-pointer disabled:cursor-default disabled:opacity-70"
+                className="flex-1 rounded-2xl bg-main100 py-3 text-sm font-semibold text-white hover:brightness-110 transition-all cursor-pointer disabled:cursor-default disabled:opacity-70"
               >
                 {saveStatus === "saving" && "저장 중..."}
                 {saveStatus === "saved" && "저장되었습니다"}

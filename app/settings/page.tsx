@@ -88,7 +88,11 @@ export default function SettingsPage() {
     }
 
     try {
-      // API 호출 (나중에 구현)
+      // TODO: 백엔드에 닉네임 업데이트 엔드포인트가 추가되면 아래 API 호출 활성화
+      // const response = await userAPI.updateNickname(editingNickname);
+      // setNickname(response.nickname);
+
+      // 현재는 로컬 상태만 업데이트
       setNickname(editingNickname);
       showToast("닉네임이 변경되었습니다", "success");
       setIsEditingNickname(false);
@@ -270,9 +274,13 @@ export default function SettingsPage() {
 
           {/* Password Change Section */}
           <div className="mb-10">
-            <h2 className="mb-6 text-lg font-semibold text-neutral-900">
+            <h2 className="text-lg font-semibold text-neutral-900">
               비밀번호 변경
             </h2>
+            <p className="mb-6 text-sm text-neutral-600">
+                주기적으로 변경하면 계정보안에 도움이 됩니다
+              </p>
+
 
             <div className="rounded-2xl border border-neutral-200 bg-white p-6">
               <form onSubmit={handlePasswordChange} className="space-y-4">
@@ -290,10 +298,10 @@ export default function SettingsPage() {
                         if (e.target.value) setShowCurrentPasswordError("");
                       }}
                       placeholder="현재 비밀번호를 입력하세요"
-                      className={`w-full rounded-lg px-4 py-3 pr-12 text-neutral-900 placeholder-neutral-500 focus:outline-none focus:ring-2 ${
+                      className={`w-full rounded-lg px-4 py-3 pr-12 text-neutral-900 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-main100 focus:border-main100 ${
                         showCurrentPasswordError
-                          ? "bg-red-50 border border-red-300 focus:ring-red-300"
-                          : "bg-neutral-100 focus:ring-main100"
+                          ? "bg-red-50 border border-red-300"
+                          : "bg-neutral-100 border border-neutral-200"
                       }`}
                     />
                     {currentPassword && !showCurrentPasswordError && (
@@ -325,14 +333,14 @@ export default function SettingsPage() {
                         if (e.target.value) setShowPasswordError("");
                       }}
                       placeholder="새 비밀번호를 입력하세요"
-                      className={`w-full rounded-lg px-4 py-3 pr-12 text-neutral-900 placeholder-neutral-500 focus:outline-none focus:ring-2 ${
+                      className={`w-full rounded-lg px-4 py-3 pr-12 text-neutral-900 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-main100 focus:border-main100 ${
                         newPassword && isPasswordValid(newPassword)
-                          ? "bg-green-50 border border-green-300 focus:ring-green-300"
+                          ? "bg-neutral-100 border border-[#10B85C]"
                           : newPassword && showPasswordError
-                          ? "bg-red-50 border border-red-300 focus:ring-red-300"
+                          ? "bg-neutral-100 border border-red-300"
                           : newPassword
-                          ? "bg-yellow-50 border border-yellow-300 focus:ring-yellow-300"
-                          : "bg-neutral-100 focus:ring-main100"
+                          ? "bg-neutral-100 border border-yellow-300"
+                          : "bg-neutral-100 border border-neutral-200"
                       }`}
                     />
                     {newPassword && (
@@ -383,14 +391,14 @@ export default function SettingsPage() {
                         if (e.target.value) setShowConfirmError("");
                       }}
                       placeholder="새 비밀번호를 다시 입력하세요"
-                      className={`w-full rounded-lg px-4 py-3 pr-12 text-neutral-900 placeholder-neutral-500 focus:outline-none focus:ring-2 ${
+                      className={`w-full rounded-lg px-4 py-3 pr-12 text-neutral-900 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-main100 focus:border-main100 ${
                         confirmPassword && confirmPassword === newPassword
-                          ? "bg-green-50 border border-green-300 focus:ring-green-300"
+                          ? "bg-neutral-100 border border-[#10B85C]"
                           : confirmPassword && showConfirmError
-                          ? "bg-red-50 border border-red-300 focus:ring-red-300"
+                          ? "bg-neutral-100 border border-red-300"
                           : confirmPassword
-                          ? "bg-yellow-50 border border-yellow-300 focus:ring-yellow-300"
-                          : "bg-neutral-100 focus:ring-main100"
+                          ? "bg-neutral-100 border border-yellow-300"
+                          : "bg-neutral-100 border border-neutral-200"
                       }`}
                     />
                     {confirmPassword && (
@@ -431,7 +439,7 @@ export default function SettingsPage() {
                 </p>
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="text-sm font-semibold text-red-600 border border-red-600 rounded-lg px-4 py-2 hover:bg-red-50 transition"
+                  className="text-sm font-semibold text-red-600 border border-red-600 rounded-lg px-4 py-2 hover:bg-red-600 hover:text-white transition"
                 >
                   서비스 탈퇴하기
                 </button>
@@ -459,12 +467,22 @@ export default function SettingsPage() {
                 취소
               </button>
               <button
-                onClick={() => {
-                  showToast("계정이 삭제되었습니다", "success");
-                  setShowDeleteConfirm(false);
-                  setTimeout(() => router.push("/"), 1500);
+                onClick={async () => {
+                  try {
+                    await userAPI.withdraw();
+                    showToast("계정이 삭제되었습니다", "success");
+                    setShowDeleteConfirm(false);
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("userId");
+                    setTimeout(() => router.push("/"), 1500);
+                  } catch (error) {
+                    showToast(
+                      error instanceof Error ? error.message : "계정 삭제에 실패했습니다",
+                      "error"
+                    );
+                  }
                 }}
-                className="flex-1 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600"
+                className="flex-1 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600 hover:shadow-lg"
               >
                 탈퇴하기
               </button>

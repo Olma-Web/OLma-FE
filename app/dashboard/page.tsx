@@ -623,18 +623,11 @@ export default function MarketDashboard() {
         setSelectedWorkFormat(latest?.workFormat ?? "");
         setCustomAmount(getBenchmarkAmount(latest)?.toString() ?? "");
 
-        // localStorage에 저장된 ID 목록 중 하나라도 서버에 존재하면 "저장됨"
+        // 이미 저장된 기록이 있으면 saveStatus를 "saved"로 설정
         const raw = localStorage.getItem("careerSavedIds");
         const savedIds: number[] = raw ? JSON.parse(raw) : [];
         if (savedIds.length > 0) {
-          const checks = await Promise.allSettled(
-            savedIds.map((id) => careerSaveAPI.getById(id))
-          );
-          const surviving = savedIds.filter((_, i) => checks[i].status === "fulfilled");
-          if (surviving.length !== savedIds.length) {
-            localStorage.setItem("careerSavedIds", JSON.stringify(surviving));
-          }
-          if (surviving.length > 0) setSaveStatus("saved");
+          setSaveStatus("saved");
         }
 
         if (!profile.jobCategoryId) {
@@ -677,6 +670,9 @@ export default function MarketDashboard() {
 
   const handleSave = () => {
     if (saveStatus === "saving" || saveStatus === "saved") return;
+    const today = new Date();
+    const formattedDate = `${String(today.getFullYear()).slice(-2)}.${String(today.getMonth() + 1).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")}`;
+    setProjectName(`${formattedDate} 프로젝트`);
     setShowProjectModal(true);
   };
 
@@ -812,11 +808,11 @@ export default function MarketDashboard() {
           <button
             onClick={handleSave}
             disabled={saveStatus === "saving" || saveStatus === "saved"}
-            className="flex items-center gap-1.5 rounded-lg border border-main100 px-4 py-2 text-sm font-semibold text-main100 transition hover:bg-main25 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-main100 px-4 py-2 text-sm font-semibold text-main100 transition hover:bg-main25 disabled:border-line1 disabled:text-bodyfont4 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Image src="/save.svg" alt="" width={15} height={20} />
             {saveStatus === "saving" && "저장 중..."}
-            {saveStatus === "saved" && "저장되었습니다"}
+            {saveStatus === "saved" && "이미 저장되었습니다"}
             {saveStatus === "idle" && "커리어 보관함에 저장"}
           </button>
         </div>
@@ -903,48 +899,70 @@ export default function MarketDashboard() {
       {/* Project name modal */}
       {showProjectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-lg">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
             <button
               onClick={() => {
                 setShowProjectModal(false);
                 setProjectName("");
               }}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+              className="absolute right-6 top-6 text-gray-400 hover:text-gray-600 text-2xl"
             >
               ✕
             </button>
-            <h2 className="text-lg font-bold text-gray-900">내 단가 기록 저장하기</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              이 문서 결과를 사용할 기획/프로젝트 이름을 설정하세요.
+
+            <h2 className="text-2xl font-bold text-titlefont1 mb-2">내 단가 기록 저장하기</h2>
+            <p className="text-sm text-bodyfont3 mb-6">
+              이 분석 결과를 나중에 찾을 수 있도록 이름을 붙여 분류에 옮겨두세요.
             </p>
-            <div className="mt-4">
-              <label className="block text-sm font-semibold text-gray-700">
+
+            <div className="mb-8">
+              <label className="block text-sm font-bold text-titlefont1 mb-3">
                 프로젝트명
               </label>
               <input
                 type="text"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                placeholder="예: 2024년 Q1 프로젝트"
-                className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-main100 focus:outline-none"
+                placeholder="프로젝트명 입력"
+                className="w-full rounded-lg bg-gray-100 px-4 py-3 text-sm text-titlefont2 placeholder:text-bodyfont4 focus:outline-none focus:ring-2 focus:ring-main100"
               />
             </div>
-            <div className="mt-6 flex gap-3">
+
+            <div className="mb-8 rounded-lg bg-gray-50 px-5 py-6 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-bodyfont3">직군</span>
+                <span className="font-medium text-titlefont1">{userProfile?.jobCategoryName || "-"}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-bodyfont3">경력</span>
+                <span className="font-medium text-titlefont1">{userProfile?.experienceLevelLabel || "-"}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-bodyfont3">계약방식</span>
+                <span className="font-medium text-titlefont1">{workFormatLabel(latestSubmission?.workFormat)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-bodyfont3">내 단가</span>
+                <span className="font-medium text-titlefont1">{userPosition}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleSaveWithProject}
+                disabled={saveStatus === "saving" || !projectName.trim()}
+                className="flex-1 rounded-2xl bg-main100 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saveStatus === "saving" ? "저장 중..." : "저장하기"}
+              </button>
               <button
                 onClick={() => {
                   setShowProjectModal(false);
                   setProjectName("");
                 }}
-                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                className="flex-1 rounded-2xl border-2 border-neutral-200 px-4 py-3 text-sm font-semibold text-titlefont1 transition hover:bg-gray-50"
               >
                 취소
-              </button>
-              <button
-                onClick={handleSaveWithProject}
-                disabled={saveStatus === "saving"}
-                className="flex-1 rounded-lg bg-main100 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#6a5ee6] disabled:opacity-50"
-              >
-                {saveStatus === "saving" ? "저장 중..." : "저장하기"}
               </button>
             </div>
           </div>
