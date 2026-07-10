@@ -234,7 +234,7 @@ export default function CareerPage() {
               <p className="text-lg font-bold text-gray-900">{profile?.nickname ?? "User"} 님</p>
             </div>
             <Link
-              href="/onboarding"
+              href="/onboarding?mode=spec-update"
               className="flex items-center gap-1.5 rounded-lg border border-main100 px-3 py-1.5 text-xs font-semibold text-main100 transition hover:bg-[#f3f1ff]"
             >
               <Pencil size={12} />
