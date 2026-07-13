@@ -416,13 +416,13 @@ export default function SettingsPage() {
                     )}
                   </div>
                   {confirmPassword && confirmPassword === newPassword && !showConfirmError && (
-                    <p className="mt-1 text-xs text-green-600">✓ 비밀번호가 일치합니다</p>
+                    <p className="mt-1 text-xs text-green-600">비밀번호가 일치합니다</p>
                   )}
                   {showConfirmError && (
                     <p className="mt-1 text-xs text-red-600">✗ {showConfirmError}</p>
                   )}
                   {confirmPassword && confirmPassword !== newPassword && !showConfirmError && (
-                    <p className="mt-1 text-xs text-red-600">✗ 비밀번호가 일치하지 않습니다</p>
+                    <p className="mt-1 text-xs text-red-600">비밀번호가 일치하지 않습니다</p>
                   )}
                 </div>
 

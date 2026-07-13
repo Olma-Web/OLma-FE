@@ -90,6 +90,16 @@ function amountUnitLabel(unit: string): string {
   return unit;
 }
 
+function getSubmissionTypeLabel(type: string): { label: string; color: string } {
+  if (type === "TRACK_B") {
+    return { label: "목표 단가", color: "bg-[#FFDEF5] text-[#B74E97]" };
+  }
+  if (type === "TRACK_A") {
+    return { label: "실제 단가", color: "bg-sub50 text-sub175" };
+  }
+  return { label: type, color: "bg-gray-100 text-gray-700" };
+}
+
 function formatAmount(amount: number): string {
   if (amount >= 10000) {
     const man = Math.floor(amount / 10000);
@@ -97,6 +107,59 @@ function formatAmount(amount: number): string {
     return rest > 0 ? `₩${man}억 ${rest}만 원` : `₩${man}억 원`;
   }
   return `₩${amount}만 원`;
+}
+
+function getBenchmarkAmount(submission: SubmissionItem | null): number | null {
+  if (!submission) return null;
+  return (submission as any).normalizedMonthly ?? submission.amount;
+}
+
+function TrendCard({ submissions }: { submissions: SubmissionItem[] }) {
+  const values = submissions
+    .map((item) => getBenchmarkAmount(item))
+    .filter((value): value is number => value != null);
+
+  if (values.length === 0) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
+        <h2 className="text-base font-bold text-gray-900">내 단가 추세</h2>
+        <p className="mt-2 text-sm text-gray-500">단가 기록을 추가하면 변화 추세를 확인할 수 있습니다.</p>
+      </div>
+    );
+  }
+
+  const latest = values[0];
+  const previous = values[1] ?? null;
+  const diffPct = previous ? Math.round(((latest - previous) / previous) * 100) : null;
+  const recentAverage = Math.round(values.slice(0, 3).reduce((sum, value) => sum + value, 0) / Math.min(values.length, 3));
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
+      <h2 className="text-base font-bold text-gray-900">내 단가 추세</h2>
+      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-lg bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-500">최근 변화</p>
+          <p className={`mt-1 text-lg font-bold ${diffPct != null && diffPct >= 0 ? "text-main100" : "text-[#b45309]"}`}>
+            {diffPct != null ? `${diffPct >= 0 ? "+" : ""}${diffPct}%` : "-"}
+          </p>
+        </div>
+        <div className="rounded-lg bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-500">최근 3건 평균</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">{recentAverage}만</p>
+        </div>
+        <div className="rounded-lg bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-500">최고 기록</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">{max}만</p>
+        </div>
+        <div className="rounded-lg bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-500">최저 기록</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">{min}만</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function toMan(won: number): number {
@@ -301,6 +364,11 @@ export default function CareerPage() {
           </div>
         </div>
 
+        {/* 내 단가 추세 */}
+        <div className="mt-6">
+          <TrendCard submissions={submissions} />
+        </div>
+
         {/* 탭 */}
         <div className="mt-6 flex border-b border-gray-200">
           <button
@@ -330,9 +398,6 @@ export default function CareerPage() {
           <div className="mt-6">
             <div className="mb-4 flex items-center gap-2">
               <h2 className="text-base font-bold text-gray-900">단가 기록</h2>
-              <span className="rounded-sm bg-sub50 px-2 py-0.5 text-xs font-semibold text-sub175">
-                실제 데이터
-              </span>
             </div>
 
             {submissions.length === 0 ? (
@@ -352,42 +417,43 @@ export default function CareerPage() {
                     key={item.id}
                     className="rounded-2xl bg-[#F5F5F5] px-6 py-5"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex flex-1 flex-col gap-2">
-                        <div className="relative group flex items-center gap-2">
+                    <div className="flex center gap-6">
+                      <div className="flex flex-col gap-1 text-center">
+                        <div className="relative group">
                           <span className="text-base font-bold text-main100">
                             {item.projectName || "프로젝트명 미설정"}
                           </span>
                           <button
                             onClick={() => openEditModal("submission", item.id, item.projectName || "")}
-                            className="absolute -top-10 left-0 opacity-0 group-hover:opacity-100 transition-opacity px-4 py-2 bg-white rounded-xl shadow-lg flex items-center gap-2 whitespace-nowrap z-10"
+                            className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity px-4 py-2 bg-white rounded-xl shadow-lg flex items-center gap-2 whitespace-nowrap z-10"
                           >
                             <Pencil size={16} className="text-gray-400" />
                             <span className="text-sm font-semibold text-gray-600">이름 변경하기</span>
                           </button>
-                          <span className="text-xs text-gray-400">{timeAgo(item.createdAt)}</span>
                         </div>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="flex items-center gap-1">
-                            <span className="text-gray-500">직군</span>
-                            <span className="font-bold text-gray-900">{item.jobCategoryName}</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="text-gray-500">경력</span>
-                            <span className="font-bold text-gray-900">{item.experienceLevelLabel}</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="text-gray-500">근무</span>
-                            <span className="font-bold text-gray-900">{workFormatLabel(item.workFormat)}</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="text-gray-500">계약</span>
-                            <span className="font-bold text-gray-900">{amountUnitLabel(item.amountUnit)}</span>
-                          </span>
-                        </div>
+                        <span className="text-xs text-gray-400">{timeAgo(item.createdAt)}</span>
                       </div>
-                      <div className="flex shrink-0 items-center gap-5">
-                        <p className="text-base font-bold text-main100 whitespace-nowrap">
+                      <div className="flex flex-1 items-center gap-4 text-sm">
+                        <span className="flex items-center gap-1">
+                          <span className="text-gray-500">직군</span>
+                          <span className="font-bold text-gray-900">{item.jobCategoryName}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-gray-500">경력</span>
+                          <span className="font-bold text-gray-900">{item.experienceLevelLabel}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-gray-500">근무</span>
+                          <span className="font-bold text-gray-900">{workFormatLabel(item.workFormat)}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-gray-500">계약</span>
+                          <span className="font-bold text-gray-900">{amountUnitLabel(item.amountUnit)}</span>
+                        </span>
+                        <span className={`rounded-sm px-2 py-0.5 text-xs font-semibold ${getSubmissionTypeLabel(item.submissionType).color}`}>
+                          {getSubmissionTypeLabel(item.submissionType).label}
+                        </span>
+                        <p className="text-base font-bold text-main100 whitespace-nowrap ml-auto">
                           {formatAmount(item.amount)}
                         </p>
                         <button
