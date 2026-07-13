@@ -175,12 +175,20 @@ function PercentileBand({
     { label: "프리미엄", from: benchmark.p75, to: benchmark.p90, className: "bg-[#fde2e2]" },
   ];
 
+  const labelPositions = [
+    { value: benchmark.p10, pct: 0 },
+    { value: benchmark.p25, pct: 25 },
+    { value: benchmark.median, pct: 50 },
+    { value: benchmark.p75, pct: 75 },
+    { value: benchmark.p90, pct: 100 },
+  ];
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-gray-900">시장 포지션 밴드</h2>
-          <p className="mt-1 text-sm text-gray-500">월 환산 단가 기준 분위수 범위입니다.</p>
+          <p className="mt-1 text-sm text-gray-500">내 위치 기준 분위수 범위입니다.</p>
         </div>
         <div className="text-right text-sm">
           <p className="font-bold text-main100">{getPositionLabel(benchmark.userPercentile)}</p>
@@ -192,19 +200,24 @@ function PercentileBand({
 
       <div className="mt-5">
         <div className="relative h-12 overflow-visible rounded-lg border border-gray-200">
-          <div className="grid h-full grid-cols-4 overflow-hidden rounded-lg">
-            {segments.map((segment) => (
-              <div key={segment.label} className={`${segment.className} px-2 py-2`}>
-                <p className="truncate text-xs font-semibold text-gray-700">{segment.label}</p>
-                <p className="truncate text-[11px] text-gray-600">
-                  {segment.from}-{segment.to}만
-                </p>
-              </div>
-            ))}
+          <div className="flex h-full overflow-hidden rounded-lg">
+            {segments.map((segment) => {
+              return (
+                <div
+                  key={segment.label}
+                  className={`${segment.className} px-2 py-2 flex-1`}
+                >
+                  <p className="truncate text-xs font-semibold text-gray-700">{segment.label}</p>
+                  <p className="truncate text-[11px] text-gray-600">
+                    {segment.from}-{segment.to}만
+                  </p>
+                </div>
+              );
+            })}
           </div>
           {markerPct != null && (
             <div
-              className="absolute top-[-7px] flex -translate-x-1/2 flex-col items-center"
+              className="absolute top-[-25px] flex -translate-x-1/2 flex-col items-center"
               style={{ left: `${markerPct}%` }}
             >
               <span className="rounded-md bg-gray-900 px-2 py-0.5 text-[11px] font-semibold text-white">
@@ -214,12 +227,24 @@ function PercentileBand({
             </div>
           )}
         </div>
-        <div className="mt-3 grid grid-cols-5 gap-2 text-center text-xs text-gray-500">
-          <span>P10 {benchmark.p10}만</span>
-          <span>P25 {benchmark.p25}만</span>
-          <span>중앙 {benchmark.median}만</span>
-          <span>P75 {benchmark.p75}만</span>
-          <span>P90 {benchmark.p90}만</span>
+        <div className="relative h-6 mt-3">
+          {labelPositions.map((pos, idx) => {
+            let alignClass = "text-center -translate-x-1/2";
+            if (idx === 0) {
+              alignClass = "text-left";
+            } else if (idx === labelPositions.length - 1) {
+              alignClass = "text-right -translate-x-full";
+            }
+            return (
+              <div
+                key={idx}
+                className={`absolute text-xs text-gray-500 whitespace-nowrap ${alignClass}`}
+                style={{ left: `${pos.pct}%` }}
+              >
+                {pos.value}만
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -305,7 +330,7 @@ function BenchmarkExplorer({
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs font-semibold text-gray-600">
-          내 월 환산 단가
+          내 위치
           <input
             type="number"
             min="1"
@@ -668,6 +693,19 @@ export default function MarketDashboard() {
     loadBenchmark();
   }, [customAmount, isLoading, selectedExperienceLevelId, selectedJobCategoryId, selectedWorkFormat]);
 
+  useEffect(() => {
+    if (!latestSubmission) return;
+
+    const raw = localStorage.getItem("careerSavedIds");
+    const savedIds: number[] = raw ? JSON.parse(raw) : [];
+
+    // 새로운 submission이 들어오면 해당 기록이 저장되지 않은 것이므로 saveStatus를 "idle"로 리셋
+    // 최신 submission의 createdAt 기반으로 판별
+    if (submissions.length > 0 && saveStatus === "saved") {
+      setSaveStatus("idle");
+    }
+  }, [submissions.length]);
+
   const handleSave = () => {
     if (saveStatus === "saving" || saveStatus === "saved") return;
     const today = new Date();
@@ -741,7 +779,7 @@ export default function MarketDashboard() {
     selectedJobLabel,
     selectedLevelLabel,
     workFormatLabel(selectedWorkFormat),
-    latestSubmission?.amountUnit === "TOTAL" ? "월 환산 비교" : "월 단가 비교",
+    latestSubmission?.amountUnit === "TOTAL" ? "건별 외주 계약" : "월 단위 계약",
   ].filter(Boolean) as string[];
 
   const barData: BarData[] = (benchmark?.distribution ?? []).map((b) => {
@@ -844,7 +882,7 @@ export default function MarketDashboard() {
             caption={reliability.label}
           />
           <StatCard
-            label="내 월 환산 단가"
+            label="내 위치"
             value={userPosition}
             caption={latestSubmission?.amountUnit === "TOTAL" ? "총액을 기간 기준으로 환산" : "입력 월 단가 기준"}
           />

@@ -88,27 +88,28 @@ export default function Home() {
                 {
                   icon: "icon_1",
                   title: "시장 단가 진단",
-                  description: "실제 프리랜서 들로부터 정확한 시장 단가를 제공합니다.",
+                  description: "실제 프리랜서 프로젝트 데이터를 기반으로 \n 정확한 시장 단가를 제공합니다.",
                 },
                 {
                   icon: "icon_2",
                   title: "스마트 견적 처방",
-                  description: "당신의 경력과 기술 스택을 통한 맞춤형 견적 제시와 제공합니다.",
+                  description: "당신의 경력과 기술 스택을 고려한 \n 맞춤형 견적 계산을 제공합니다.",
                 },
                 {
                   icon: "icon_3",
                   title: "네트워킹 및 교류",
-                  description: "같은 업계 디자이너들의 실전 경험을 듣고 네트워킹하세요.",
+                  description: "같은 업계 디자이너들과 정보를 공유하고 네트워킹하세요.",
                 },
                 {
                   icon: "icon_4",
                   title: "가치 변화 트래킹",
-                  description: "시간이 지나며 당신의 시장 가치 변화를 \n 추적하고 성장을 기록하세요.",
+                  description: "시간이 지남에 따라 당신의 시장 가치 변화를 \n 추적하고 성장 전략을 세우세요.",
                 },
               ].map((item) => (
                 <div
                   key={item.icon}
-                  className="flex flex-col gap-4 rounded-2xl bg-gradient-to-r from-[#E0DDFF] to-[#DAEDFF] shadow-md p-6 px-8 py-8 md:p-8"
+                  className="flex flex-col gap-4 rounded-2xl bg-gradient-to-r from-[#E0DDFF] to-[#DAEDFF] p-6 px-8 py-8 md:p-8"
+                  style={{ boxShadow: "0px 2px 18px rgba(177, 205, 230, 0.7)" }}
                 >
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0">
@@ -122,7 +123,7 @@ export default function Home() {
                       {item.title}
                     </h3>
                   </div>
-                  <p className="text-sm text-neutral-600 md:text-[15px]">
+                  <p className="text-sm text-bodyfont1 md:text-[15px] whitespace-pre-line">
                     {item.description}
                   </p>
                 </div>

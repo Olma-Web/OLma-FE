@@ -1,34 +1,45 @@
 "use client";
 
-import { useState } from "react";
+export const dynamic = "force-dynamic";
+
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { getSteps } from "@/lib/onboarding/steps";
 import { jobCategoryMap, experienceLevelMap, workFormatMap, durationMap, certificateMap } from "@/lib/onboarding/maps";
 import { submissionAPI, userAPI } from "@/lib/api";
 import Topbar from "@/components/topbar";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function OnboardingPage() {
+function OnboardingContent() {
+  const searchParams = useSearchParams();
+  const isSpecUpdate = searchParams.get("mode") === "spec-update";
+
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string | string[]>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [specUpdateAnswers, setSpecUpdateAnswers] = useState<Record<number, string | string[]>>({});
 
-  const steps = getSteps(answers[1] as string, answers[6] as string);
+  const allSteps = getSteps(answers[1] as string, answers[6] as string);
+  const steps = isSpecUpdate ? allSteps.filter((s) => [2, 3, 4].includes(s.id)) : allSteps;
   const totalSteps = steps.length;
   const step = steps[currentStep];
-  const progressDenominator = answers[1] && !answers[6]
+
+  const workingAnswers = isSpecUpdate ? specUpdateAnswers : answers;
+  const progressDenominator = isSpecUpdate ? 3 : (answers[1] && !answers[6]
     ? getSteps(answers[1] as string, "건별 외주 계약").length
-    : totalSteps;
+    : totalSteps);
   const progress = Math.round(((currentStep + 1) / progressDenominator) * 100);
   const isLastStep = currentStep === totalSteps - 1;
 
   const isSelected = (option: string) =>
     step.type === "multi"
-      ? (answers[step.id] as string[] ?? []).includes(option)
-      : answers[step.id] === option;
+      ? (workingAnswers[step.id] as string[] ?? []).includes(option)
+      : workingAnswers[step.id] === option;
 
   const handleSelect = (option: string) => {
     if (step.type === "multi") {
-      const current = (answers[step.id] as string[]) ?? [];
+      const current = (workingAnswers[step.id] as string[]) ?? [];
       let next: string[];
       if (option === "없음") {
         next = current.includes("없음") ? [] : ["없음"];
@@ -38,24 +49,43 @@ export default function OnboardingPage() {
           ? withoutNone.filter((v) => v !== option)
           : [...withoutNone, option];
       }
-      setAnswers((prev) => ({ ...prev, [step.id]: next }));
+      if (isSpecUpdate) {
+        setSpecUpdateAnswers((prev) => ({ ...prev, [step.id]: next }));
+      } else {
+        setAnswers((prev) => ({ ...prev, [step.id]: next }));
+      }
     } else {
-      const newAnswers = { ...answers, [step.id]: option };
-      setAnswers(newAnswers);
-      const newSteps = getSteps(newAnswers[1] as string, newAnswers[6] as string);
-      if (currentStep < newSteps.length - 1) {
-        setTimeout(() => setCurrentStep((s) => s + 1), 200);
+      const newAnswers = { ...workingAnswers, [step.id]: option };
+      if (isSpecUpdate) {
+        setSpecUpdateAnswers(newAnswers as Record<number, string | string[]>);
+      } else {
+        setAnswers(newAnswers as Record<number, string | string[]>);
+      }
+      if (!isSpecUpdate) {
+        const newSteps = getSteps(newAnswers[1] as string, newAnswers[6] as string);
+        if (currentStep < newSteps.length - 1) {
+          setTimeout(() => setCurrentStep((s) => s + 1), 200);
+        }
+      } else {
+        if (currentStep < totalSteps - 1) {
+          setTimeout(() => setCurrentStep((s) => s + 1), 200);
+        }
       }
     }
   };
 
   const hasAnswer =
     step.type === "multi"
-      ? (answers[step.id] as string[] ?? []).length > 0
-      : !!answers[step.id];
+      ? (workingAnswers[step.id] as string[] ?? []).length > 0
+      : !!workingAnswers[step.id];
 
   const goNext = () => {
-    if (currentStep < totalSteps - 1) setCurrentStep((s) => s + 1);
+    if (currentStep < totalSteps - 1) {
+      setCurrentStep((s) => s + 1);
+    } else if (isLastStep) {
+      // 마지막 스텝에서 "다음으로" 버튼 클릭 시 제출
+      handleSubmit();
+    }
   };
 
   const goPrev = () => {
@@ -65,54 +95,67 @@ export default function OnboardingPage() {
   const handleSubmit = async () => {
     setIsLoading(true);
 
-    const isTrackA = answers[1] === "네, 이미 정해졌어요";
-    const isMonthly = answers[6] === "월 단위 계약";
-    const lastStepId = steps[steps.length - 1].id;
-    const lastAnswer = answers[lastStepId] as string;
-    const durationStepId = steps.find((s) => s.type === "single" && s.id === 7)?.id;
-    const durationAnswer = durationStepId ? answers[durationStepId] as string : undefined;
-
-    const body: Record<string, unknown> = {
-      jobCategoryId: jobCategoryMap[answers[2] as string],
-      experienceLevelId: experienceLevelMap[answers[3] as string],
-      userId: Number(localStorage.getItem("userId")),
-      submissionType: isTrackA ? "TRACK_A" : "TRACK_B",
-      workFormat: workFormatMap[answers[5] as string],
-      amount: Number(lastAnswer),
-      amountUnit: isMonthly ? "MONTHLY" : "TOTAL",
-      sessionId: crypto.randomUUID(),
-    };
-
-    if (!isMonthly && durationAnswer) {
-      body.duration = durationMap[durationAnswer];
-    }
-
     try {
-      const result = await submissionAPI.submit(body);
-
-      // 커리어 관리 > 내 단가 기록 탭에 뜨도록 저장된 ID 목록에 추가
-      const raw = localStorage.getItem("careerSavedIds");
-      const ids: number[] = raw ? JSON.parse(raw) : [];
-      if (!ids.includes(result.id)) ids.push(result.id);
-      localStorage.setItem("careerSavedIds", JSON.stringify(ids));
-
-      // submission 후 user profile에 jobCategory/experienceLevel 저장
-      // (백엔드 submission 저장이 user profile을 자동 업데이트하지 않으므로 별도 호출 필요)
       const userId = Number(localStorage.getItem("userId"));
-      if (userId) {
-        const selectedCerts = (answers[4] as string[] ?? [])
-          .filter((c) => c !== "없음")
-          .map((c) => certificateMap[c])
-          .filter(Boolean) as number[];
 
-        await userAPI.updateProfile(userId, {
+      if (isSpecUpdate) {
+        // Spec update mode: 프로필 업데이트만
+        if (userId) {
+          const selectedCerts = (specUpdateAnswers[4] as string[] ?? [])
+            .filter((c) => c !== "없음")
+            .map((c) => certificateMap[c])
+            .filter(Boolean) as number[];
+
+          await userAPI.updateProfile(userId, {
+            jobCategoryId: jobCategoryMap[specUpdateAnswers[2] as string],
+            experienceLevelId: experienceLevelMap[specUpdateAnswers[3] as string],
+            certificateTypeIds: selectedCerts,
+          });
+        }
+        // 스펙 업데이트 완료 후 바로 커리어 페이지로 이동 (자동으로 데이터 새로고침됨)
+        window.location.href = "/career";
+      } else {
+        // Normal onboarding mode: submission + profile 업데이트
+        const isTrackA = answers[1] === "네, 이미 정해졌어요";
+        const isMonthly = answers[6] === "월 단위 계약";
+        const lastStepId = allSteps[allSteps.length - 1].id;
+        const lastAnswer = answers[lastStepId] as string;
+        const durationStepId = allSteps.find((s) => s.type === "single" && s.id === 7)?.id;
+        const durationAnswer = durationStepId ? answers[durationStepId] as string : undefined;
+
+        const body: Record<string, unknown> = {
           jobCategoryId: jobCategoryMap[answers[2] as string],
           experienceLevelId: experienceLevelMap[answers[3] as string],
-          certificateTypeIds: selectedCerts,
-        });
-      }
+          userId: userId,
+          submissionType: isTrackA ? "TRACK_A" : "TRACK_B",
+          workFormat: workFormatMap[answers[5] as string],
+          amount: Number(lastAnswer),
+          amountUnit: isMonthly ? "MONTHLY" : "TOTAL",
+          sessionId: crypto.randomUUID(),
+        };
 
-      window.location.href = "/dashboard";
+        if (!isMonthly && durationAnswer) {
+          body.duration = durationMap[durationAnswer];
+        }
+
+        const result = await submissionAPI.submit(body);
+
+        // submission 후 user profile에 jobCategory/experienceLevel 저장
+        if (userId) {
+          const selectedCerts = (answers[4] as string[] ?? [])
+            .filter((c) => c !== "없음")
+            .map((c) => certificateMap[c])
+            .filter(Boolean) as number[];
+
+          await userAPI.updateProfile(userId, {
+            jobCategoryId: jobCategoryMap[answers[2] as string],
+            experienceLevelId: experienceLevelMap[answers[3] as string],
+            certificateTypeIds: selectedCerts,
+          });
+        }
+
+        window.location.href = "/dashboard";
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : "서버에 연결할 수 없어요");
       setIsLoading(false);
@@ -246,7 +289,7 @@ export default function OnboardingPage() {
                 onClick={goNext}
                 className="rounded-xl bg-gradient-to-r from-main100 to-sub175 px-[42px] py-3.5 text-base font-semibold text-white hover:brightness-105 transition-all cursor-pointer"
               >
-                다음으로
+                {isSpecUpdate ? "저장하기" : "다음으로"}
               </button>
             </div>
           )}
@@ -265,5 +308,13 @@ export default function OnboardingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><p>로딩 중...</p></div>}>
+      <OnboardingContent />
+    </Suspense>
   );
 }

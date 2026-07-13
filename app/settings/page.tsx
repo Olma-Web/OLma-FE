@@ -310,7 +310,7 @@ export default function SettingsPage() {
                         onClick={() => setShowCurrentPasswordText(!showCurrentPasswordText)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 hover:opacity-70 transition"
                       >
-                        <Image src="/eye.svg" alt="toggle password visibility" width={20} height={20} />
+                        <Image src={showCurrentPasswordText ? "/eye_none.svg" : "/eye.svg"} alt="toggle password visibility" width={20} height={20} />
                       </button>
                     )}
                   </div>
@@ -349,12 +349,12 @@ export default function SettingsPage() {
                         onClick={() => setShowNewPasswordText(!showNewPasswordText)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 hover:opacity-70 transition"
                       >
-                        <Image src="/eye.svg" alt="toggle password visibility" width={20} height={20} />
+                        <Image src={showNewPasswordText ? "/eye_none.svg" : "/eye.svg"} alt="toggle password visibility" width={20} height={20} />
                       </button>
                     )}
                   </div>
                   {newPassword && (
-                    <div className="mt-2 text-xs space-y-1">
+                    <div className="mt-2 text-xs flex flex-wrap gap-3">
                       <div className={PASSWORD_REQUIREMENTS.minLength(newPassword) ? "text-green-600" : "text-neutral-500"}>
                         ✓ 8자 이상
                       </div>
@@ -388,7 +388,11 @@ export default function SettingsPage() {
                       value={confirmPassword}
                       onChange={(e) => {
                         setConfirmPassword(e.target.value);
-                        if (e.target.value) setShowConfirmError("");
+                        if (e.target.value !== newPassword) {
+                          setShowConfirmError("비밀번호가 일치하지 않습니다");
+                        } else {
+                          setShowConfirmError("");
+                        }
                       }}
                       placeholder="새 비밀번호를 다시 입력하세요"
                       className={`w-full rounded-lg px-4 py-3 pr-12 text-neutral-900 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-main100 focus:border-main100 ${
@@ -407,12 +411,18 @@ export default function SettingsPage() {
                         onClick={() => setShowConfirmPasswordText(!showConfirmPasswordText)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 hover:opacity-70 transition"
                       >
-                        <Image src="/eye.svg" alt="toggle password visibility" width={20} height={20} />
+                        <Image src={showConfirmPasswordText ? "/eye_none.svg" : "/eye.svg"} alt="toggle password visibility" width={20} height={20} />
                       </button>
                     )}
                   </div>
+                  {confirmPassword && confirmPassword === newPassword && !showConfirmError && (
+                    <p className="mt-1 text-xs text-green-600">비밀번호가 일치합니다</p>
+                  )}
                   {showConfirmError && (
-                    <p className="mt-1 text-xs text-red-600">{showConfirmError}</p>
+                    <p className="mt-1 text-xs text-red-600">✗ {showConfirmError}</p>
+                  )}
+                  {confirmPassword && confirmPassword !== newPassword && !showConfirmError && (
+                    <p className="mt-1 text-xs text-red-600">비밀번호가 일치하지 않습니다</p>
                   )}
                 </div>
 
