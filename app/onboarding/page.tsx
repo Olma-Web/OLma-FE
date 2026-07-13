@@ -79,7 +79,12 @@ export default function OnboardingPage() {
       : !!workingAnswers[step.id];
 
   const goNext = () => {
-    if (currentStep < totalSteps - 1) setCurrentStep((s) => s + 1);
+    if (currentStep < totalSteps - 1) {
+      setCurrentStep((s) => s + 1);
+    } else if (isLastStep) {
+      // 마지막 스텝에서 "다음으로" 버튼 클릭 시 제출
+      handleSubmit();
+    }
   };
 
   const goPrev = () => {
@@ -106,6 +111,7 @@ export default function OnboardingPage() {
             certificateTypeIds: selectedCerts,
           });
         }
+        // 스펙 업데이트 완료 후 바로 커리어 페이지로 이동 (자동으로 데이터 새로고침됨)
         window.location.href = "/career";
       } else {
         // Normal onboarding mode: submission + profile 업데이트
@@ -282,7 +288,7 @@ export default function OnboardingPage() {
                 onClick={goNext}
                 className="rounded-xl bg-gradient-to-r from-main100 to-sub175 px-[42px] py-3.5 text-base font-semibold text-white hover:brightness-105 transition-all cursor-pointer"
               >
-                다음으로
+                {isSpecUpdate ? "저장하기" : "다음으로"}
               </button>
             </div>
           )}

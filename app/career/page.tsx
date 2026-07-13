@@ -198,30 +198,36 @@ export default function CareerPage() {
     setShowEditModal(true);
   };
 
-  const handleSaveEditName = () => {
+  const handleSaveEditName = async () => {
     if (!editingName.trim()) {
       alert("프로젝트명을 입력해주세요");
       return;
     }
 
-    if (editingType === "submission" && editingId) {
-      setSubmissions((prev) =>
-        prev.map((item) =>
-          item.id === editingId ? { ...item, projectName: editingName } : item
-        )
-      );
-    } else if (editingType === "estimate" && editingId) {
-      setEstimates((prev) =>
-        prev.map((item) =>
-          item.id === editingId ? { ...item, projectName: editingName } : item
-        )
-      );
-    }
+    try {
+      if (editingType === "submission" && editingId) {
+        await careerSaveAPI.updateProjectName(editingId, editingName);
+        setSubmissions((prev) =>
+          prev.map((item) =>
+            item.id === editingId ? { ...item, projectName: editingName } : item
+          )
+        );
+      } else if (editingType === "estimate" && editingId) {
+        await estimateAPI.updateProjectName(editingId, editingName);
+        setEstimates((prev) =>
+          prev.map((item) =>
+            item.id === editingId ? { ...item, projectName: editingName } : item
+          )
+        );
+      }
 
-    setShowEditModal(false);
-    setEditingType(null);
-    setEditingId(null);
-    setEditingName("");
+      setShowEditModal(false);
+      setEditingType(null);
+      setEditingId(null);
+      setEditingName("");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "저장에 실패했습니다");
+    }
   };
 
   if (isLoading) {

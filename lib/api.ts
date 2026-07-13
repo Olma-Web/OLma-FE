@@ -194,6 +194,12 @@ export const estimateAPI = {
       body: JSON.stringify(body),
     }),
 
+  updateProjectName: (estimateId: number, projectName: string) =>
+    fetchAPI(`/v1/estimates/${estimateId}/project-name`, {
+      method: "PATCH",
+      body: JSON.stringify({ projectName }),
+    }),
+
 };
 
 // 커리어 보관함 저장
@@ -217,6 +223,12 @@ export const careerSaveAPI = {
 
   getById: (id: number) =>
     fetchAPI(`/v1/submissions/${id}`),
+
+  updateProjectName: (submissionId: number, projectName: string) =>
+    fetchAPI(`/v1/submissions/${submissionId}/project-name`, {
+      method: "PATCH",
+      body: JSON.stringify({ projectName }),
+    }),
 };
 
 // 커뮤니티
