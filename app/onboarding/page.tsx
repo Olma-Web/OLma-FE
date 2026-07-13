@@ -4,13 +4,14 @@ export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { getSteps } from "@/lib/onboarding/steps";
 import { jobCategoryMap, experienceLevelMap, workFormatMap, durationMap, certificateMap } from "@/lib/onboarding/maps";
 import { submissionAPI, userAPI } from "@/lib/api";
 import Topbar from "@/components/topbar";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const searchParams = useSearchParams();
   const isSpecUpdate = searchParams.get("mode") === "spec-update";
 
@@ -307,5 +308,13 @@ export default function OnboardingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><p>로딩 중...</p></div>}>
+      <OnboardingContent />
+    </Suspense>
   );
 }
