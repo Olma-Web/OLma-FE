@@ -348,7 +348,7 @@ export default function CareerPage() {
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex flex-1 flex-col gap-2">
-                        <div className="relative group">
+                        <div className="relative group flex items-center gap-2">
                           <span className="text-base font-bold text-main100">
                             {item.projectName || "프로젝트명 미설정"}
                           </span>
@@ -359,7 +359,7 @@ export default function CareerPage() {
                             <Pencil size={16} className="text-gray-400" />
                             <span className="text-sm font-semibold text-gray-600">이름 변경하기</span>
                           </button>
-                          <span className="text-xs text-gray-400 block mt-1">{timeAgo(item.createdAt)}</span>
+                          <span className="text-xs text-gray-400">{timeAgo(item.createdAt)}</span>
                         </div>
                         <div className="flex items-center gap-4 text-sm">
                           <span className="flex items-center gap-1">
@@ -438,7 +438,7 @@ export default function CareerPage() {
                       className="rounded-2xl bg-white px-6 py-5 border border-gray-200 shadow-sm"
                     >
                       <div className="flex items-center justify-between gap-4 mb-4">
-                        <div className="relative group">
+                        <div className="relative group flex items-center gap-2">
                           <div className="flex items-center gap-2">
                             <span className="rounded-md bg-sub50 px-2 py-0.5 text-xs font-bold text-sub175">
                               기본 견적
@@ -454,7 +454,7 @@ export default function CareerPage() {
                             <Pencil size={16} className="text-gray-400" />
                             <span className="text-sm font-semibold text-gray-600">이름 변경하기</span>
                           </button>
-                          <span className="text-xs text-gray-400 block mt-1">{timeAgo(est.createdAt)}</span>
+                          <span className="text-xs text-gray-400">{timeAgo(est.createdAt)}</span>
                         </div>
                         <button
                           onClick={() => deleteEstimate(est.id)}
