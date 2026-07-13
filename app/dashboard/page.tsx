@@ -668,6 +668,19 @@ export default function MarketDashboard() {
     loadBenchmark();
   }, [customAmount, isLoading, selectedExperienceLevelId, selectedJobCategoryId, selectedWorkFormat]);
 
+  useEffect(() => {
+    if (!latestSubmission) return;
+
+    const raw = localStorage.getItem("careerSavedIds");
+    const savedIds: number[] = raw ? JSON.parse(raw) : [];
+
+    // 새로운 submission이 들어오면 해당 기록이 저장되지 않은 것이므로 saveStatus를 "idle"로 리셋
+    // 최신 submission의 createdAt 기반으로 판별
+    if (submissions.length > 0 && saveStatus === "saved") {
+      setSaveStatus("idle");
+    }
+  }, [submissions.length]);
+
   const handleSave = () => {
     if (saveStatus === "saving" || saveStatus === "saved") return;
     const today = new Date();
