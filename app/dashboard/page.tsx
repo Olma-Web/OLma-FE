@@ -305,7 +305,7 @@ function BenchmarkExplorer({
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs font-semibold text-gray-600">
-          내 월 환산 단가
+          내 위치
           <input
             type="number"
             min="1"

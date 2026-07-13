@@ -116,6 +116,11 @@ export default function CareerPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [editingType, setEditingType] = useState<"submission" | "estimate" | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [showEditModal, setShowEditModal] = useState(false);
+
   const getUserId = () => {
     if (typeof window === "undefined") return null;
     const raw = localStorage.getItem("userId");
@@ -184,6 +189,39 @@ export default function CareerPage() {
   const deleteEstimate = async (id: number) => {
     await estimateAPI.delete(id);
     setEstimates((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  const openEditModal = (type: "submission" | "estimate", id: number, currentName: string) => {
+    setEditingType(type);
+    setEditingId(id);
+    setEditingName(currentName);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditName = () => {
+    if (!editingName.trim()) {
+      alert("프로젝트명을 입력해주세요");
+      return;
+    }
+
+    if (editingType === "submission" && editingId) {
+      setSubmissions((prev) =>
+        prev.map((item) =>
+          item.id === editingId ? { ...item, projectName: editingName } : item
+        )
+      );
+    } else if (editingType === "estimate" && editingId) {
+      setEstimates((prev) =>
+        prev.map((item) =>
+          item.id === editingId ? { ...item, projectName: editingName } : item
+        )
+      );
+    }
+
+    setShowEditModal(false);
+    setEditingType(null);
+    setEditingId(null);
+    setEditingName("");
   };
 
   if (isLoading) {
@@ -310,10 +348,16 @@ export default function CareerPage() {
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex flex-1 flex-col gap-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 group">
                           <span className="text-base font-bold text-main100">
                             {item.projectName || "프로젝트명 미설정"}
                           </span>
+                          <button
+                            onClick={() => openEditModal("submission", item.id, item.projectName || "")}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:opacity-70"
+                          >
+                            <Pencil size={16} className="text-gray-400" />
+                          </button>
                           <span className="text-xs text-gray-400">{timeAgo(item.createdAt)}</span>
                         </div>
                         <div className="flex items-center gap-4 text-sm">
@@ -393,13 +437,19 @@ export default function CareerPage() {
                       className="rounded-2xl bg-white px-6 py-5 border border-gray-200 shadow-sm"
                     >
                       <div className="flex items-center justify-between gap-4 mb-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 group">
                           <span className="rounded-md bg-sub50 px-2 py-0.5 text-xs font-bold text-sub175">
                             기본 견적
                           </span>
                           <span className="text-base font-bold text-gray-900">
                             {est.projectName || estimateFallbackName(est)}
                           </span>
+                          <button
+                            onClick={() => openEditModal("estimate", est.id, est.projectName || estimateFallbackName(est))}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:opacity-70"
+                          >
+                            <Pencil size={16} className="text-gray-400" />
+                          </button>
                           <span className="text-xs text-gray-400">{timeAgo(est.createdAt)}</span>
                         </div>
                         <button
@@ -523,6 +573,41 @@ export default function CareerPage() {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Edit Modal */}
+        {showEditModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+            <div className="rounded-2xl bg-white px-6 py-8 shadow-xl max-w-md w-full">
+              <h3 className="mb-6 text-xl font-bold text-gray-900">이름 변경하기</h3>
+              <input
+                type="text"
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                placeholder="프로젝트명을 입력해주세요"
+                className="w-full rounded-lg border border-line1 bg-bg2 px-4 py-3 text-base text-titlefont2 placeholder:text-bodyfont4 focus:outline-none focus:ring-2 focus:ring-main75 focus:border-main100"
+              />
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingType(null);
+                    setEditingId(null);
+                    setEditingName("");
+                  }}
+                  className="flex-1 rounded-lg border border-line1 px-4 py-2.5 text-base font-semibold text-titlefont2 transition hover:bg-bg2"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSaveEditName}
+                  className="flex-1 rounded-lg bg-main100 px-4 py-2.5 text-base font-semibold text-white transition hover:brightness-105"
+                >
+                  저장
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>
