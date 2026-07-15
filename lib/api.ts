@@ -138,6 +138,20 @@ export const estimateAPI = {
   getList: () =>
     fetchAPI(`/v1/estimates`),
 
+  getById: (estimateId: number) =>
+    fetchAPI(`/v1/estimates/${estimateId}`),
+
+  startNegotiationSimulation: (estimateId: number) =>
+    fetchAPI(`/v1/estimates/${estimateId}/negotiation-simulation/start`, {
+      method: "PATCH",
+    }),
+
+  completeNegotiationSimulation: (estimateId: number, state: unknown) =>
+    fetchAPI(`/v1/estimates/${estimateId}/negotiation-simulation/complete`, {
+      method: "PATCH",
+      body: JSON.stringify({ state }),
+    }),
+
   delete: (estimateId: number) =>
     fetch(`${BASE_URL}/v1/estimates/${estimateId}`, {
       method: "DELETE",

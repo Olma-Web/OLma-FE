@@ -25,6 +25,27 @@ interface SubmissionItem {
   projectName?: string;
 }
 
+interface EstimateNegotiationDisplay {
+  status: string;
+  currentAmount: number;
+  targetBudgetAmount: number;
+  gapAmount: number;
+  recommendedOptionType?: string | null;
+  options: {
+    type: string;
+    title: string;
+    adjustedAmount: number;
+    savingAmount: number;
+    gapAfterAdjustment: number;
+    adjustedScreenCount: number;
+    uxEngagement: string;
+    addons: string[];
+    adjustments: string[];
+    clientMessage: string;
+  }[];
+  clientMessage: string;
+}
+
 interface EstimateItem {
   id: number;
   experienceLevelLabel: string;
@@ -35,26 +56,9 @@ interface EstimateItem {
   addons: string[];
   addonPercent: number;
   finalAmount: number;
-  negotiationResult?: {
-    status: string;
-    currentAmount: number;
-    targetBudgetAmount: number;
-    gapAmount: number;
-    recommendedOptionType?: string | null;
-    options: {
-      type: string;
-      title: string;
-      adjustedAmount: number;
-      savingAmount: number;
-      gapAfterAdjustment: number;
-      adjustedScreenCount: number;
-      uxEngagement: string;
-      addons: string[];
-      adjustments: string[];
-      clientMessage: string;
-    }[];
-    clientMessage: string;
-  } | null;
+  negotiationResult?: EstimateNegotiationDisplay | null;
+  negotiationSimulationStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+  negotiationSimulationState?: EstimateNegotiationDisplay | null;
   createdAt: string;
   projectName?: string;
 }
@@ -104,9 +108,9 @@ function formatAmount(amount: number): string {
   if (amount >= 10000) {
     const man = Math.floor(amount / 10000);
     const rest = amount % 10000;
-    return rest > 0 ? `₩${man}억 ${rest}만 원` : `₩${man}억 원`;
+    return rest > 0 ? `${man}억 ${rest}만 원` : `${man}억 원`;
   }
-  return `₩${amount}만 원`;
+  return `${amount}만 원`;
 }
 
 function getBenchmarkAmount(submission: SubmissionItem | null): number | null {
@@ -240,6 +244,12 @@ export default function CareerPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") === "estimates") setTab("estimates");
+  }, []);
 
   const deleteSubmission = async (id: number) => {
     await submissionDeleteAPI.delete(id);
@@ -504,6 +514,12 @@ export default function CareerPage() {
                   const baseRatePerScreen = step1BasicFee / est.screenCount;
                   const step4AddonFee = est.finalAmount - step3PlatformFee;
 
+                  // 협상 시뮬레이터를 새 방식(start/complete)으로 진행한 경우 negotiationResult 대신
+                  // negotiationSimulationState에 결과가 저장되므로 둘 다 확인한다.
+                  const negotiation =
+                    est.negotiationResult ??
+                    (est.negotiationSimulationStatus === "COMPLETED" ? est.negotiationSimulationState : null);
+
                   return (
                     <li
                       key={est.id}
@@ -558,11 +574,11 @@ export default function CareerPage() {
                         )}
                         <div className="flex justify-between items-center py-3">
                           <span className="font-semibold text-main100">권장 최소 방어 견적</span>
-                          <span className="text-lg font-bold text-main100">₩{toMan(est.finalAmount).toLocaleString()}만 원</span>
+                          <span className="text-lg font-bold text-main100">{toMan(est.finalAmount).toLocaleString()}만 원</span>
                         </div>
                       </div>
 
-                      {est.negotiationResult && (
+                      {negotiation && (
                         <>
                           <button
                             onClick={() =>
@@ -587,25 +603,25 @@ export default function CareerPage() {
                                 <div className="flex justify-between gap-3">
                                   <span className="text-gray-500">클라이언트 예산</span>
                                   <span className="font-bold text-gray-900">
-                                    ₩{toMan(est.negotiationResult.targetBudgetAmount).toLocaleString()}만 원
+                                    {toMan(negotiation.targetBudgetAmount).toLocaleString()}만 원
                                   </span>
                                 </div>
                                 <div className="mt-2 flex justify-between gap-3">
                                   <span className="text-gray-500">예산 차이</span>
                                   <span className="font-bold text-main100">
-                                    ₩{toMan(est.negotiationResult.gapAmount).toLocaleString()}만 원
+                                    {toMan(negotiation.gapAmount).toLocaleString()}만 원
                                   </span>
                                 </div>
                                 <p className="mt-2 text-xs leading-5 text-gray-500">
-                                  {est.negotiationResult.clientMessage}
+                                  {negotiation.clientMessage}
                                 </p>
                               </div>
 
-                              {est.negotiationResult.options.map((option) => (
+                              {negotiation.options.map((option) => (
                                 <div
                                   key={`${est.id}-${option.type}`}
                                   className={`rounded-xl border px-4 py-3 ${
-                                    est.negotiationResult?.recommendedOptionType === option.type
+                                    negotiation.recommendedOptionType === option.type
                                       ? "border-main100 bg-main25"
                                       : "border-gray-200 bg-white"
                                   }`}
@@ -614,14 +630,14 @@ export default function CareerPage() {
                                     <div>
                                       <p className="text-sm font-bold text-gray-900">
                                         {option.title}
-                                        {est.negotiationResult?.recommendedOptionType === option.type && (
+                                        {negotiation.recommendedOptionType === option.type && (
                                           <span className="ml-2 rounded-md bg-main100 px-2 py-0.5 text-xs text-white">
                                             추천
                                           </span>
                                         )}
                                       </p>
                                       <p className="mt-1 text-xs text-gray-500">
-                                        조정 후 ₩{toMan(option.adjustedAmount).toLocaleString()}만 원 · 절감 ₩{toMan(option.savingAmount).toLocaleString()}만 원
+                                        조정 후 {toMan(option.adjustedAmount).toLocaleString()}만 원 · 절감 {toMan(option.savingAmount).toLocaleString()}만 원
                                       </p>
                                     </div>
                                     <span className="shrink-0 text-xs font-semibold text-gray-500">

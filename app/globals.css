@@ -78,4 +78,34 @@ body {
     background-position: var(--home-background-position);
     background-repeat: no-repeat;
   }
+
+  .animate-typing-dot {
+    animation: typing-dot-bounce 1.2s ease-in-out infinite;
+  }
+
+  .animate-chat-in {
+    animation: chat-fade-in 0.25s ease-out;
+  }
+}
+
+@keyframes typing-dot-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes chat-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

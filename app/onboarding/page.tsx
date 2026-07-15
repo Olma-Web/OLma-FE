@@ -14,6 +14,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 function OnboardingContent() {
   const searchParams = useSearchParams();
   const isSpecUpdate = searchParams.get("mode") === "spec-update";
+  const returnTo = searchParams.get("returnTo");
 
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string | string[]>>({});
@@ -154,7 +155,7 @@ function OnboardingContent() {
           });
         }
 
-        window.location.href = "/dashboard";
+        window.location.href = returnTo === "estimate" ? "/estimate" : "/dashboard";
       }
     } catch (err) {
       alert(err instanceof Error ? err.message : "서버에 연결할 수 없어요");
