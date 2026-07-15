@@ -230,16 +230,17 @@ export default function EstimatePage() {
   const handleNegotiationSubmit = async () => {
     const inputMan = Number(targetBudget);
     if (!inputMan || inputMan <= 0 || negotiationStatus === "loading") return;
-    if (!experienceLevelId || !jobCategoryId) return;
+    // workScope/platform은 답변 수정(restartFromStep)으로 언제든 다시 빈 값이 될 수 있어 매핑 전에 반드시 확인한다.
+    if (!experienceLevelId || !jobCategoryId || !workScope || !platform) return;
     setNegotiationStatus("loading");
     try {
       const data = await estimateAPI.simulateNegotiation({
         experienceLevelId,
         jobCategoryId,
         screenCount: Number(screens),
-        uxEngagement: UX_ENGAGEMENT_MAP[workScope as string],
-        platformEnvironment: PLATFORM_ENV_MAP[platform as string],
-        addons: deliverables.map((d) => ADDON_MAP[d]),
+        uxEngagement: UX_ENGAGEMENT_MAP[workScope],
+        platformEnvironment: PLATFORM_ENV_MAP[platform],
+        addons: deliverables.map((d) => ADDON_MAP[d]).filter(Boolean),
         targetBudgetAmount: inputMan * 10000,
       });
       setNegotiationResult(data);
@@ -1015,17 +1016,21 @@ export default function EstimatePage() {
           onSave={
             selectedEstimateDetail
               ? undefined
-              : (name) =>
-                  estimateAPI.save({
-                    experienceLevelId: experienceLevelId!,
-                    jobCategoryId: jobCategoryId!,
+              : (name) => {
+                  if (!experienceLevelId || !jobCategoryId || !workScope || !platform) {
+                    return Promise.reject(new Error("필수 입력 값이 누락되었습니다."));
+                  }
+                  return estimateAPI.save({
+                    experienceLevelId,
+                    jobCategoryId,
                     screenCount: Number(screens),
-                    uxEngagement: UX_ENGAGEMENT_MAP[workScope as string],
-                    platformEnvironment: PLATFORM_ENV_MAP[platform as string],
-                    addons: deliverables.map((d) => ADDON_MAP[d]),
+                    uxEngagement: UX_ENGAGEMENT_MAP[workScope],
+                    platformEnvironment: PLATFORM_ENV_MAP[platform],
+                    addons: deliverables.map((d) => ADDON_MAP[d]).filter(Boolean),
                     projectName: name,
                     negotiationTargetBudgetAmount: negotiationResult?.targetBudgetAmount,
-                  })
+                  });
+                }
           }
         />
       )}
@@ -1042,13 +1047,16 @@ export default function EstimatePage() {
               await estimateAPI.completeNegotiationSimulation(selectedEstimateDetail.id, negotiationResult);
               setLoadedNegotiationSaved(true);
             } else {
+              if (!experienceLevelId || !jobCategoryId || !workScope || !platform) {
+                throw new Error("필수 입력 값이 누락되었습니다.");
+              }
               await estimateAPI.save({
-                experienceLevelId: experienceLevelId!,
-                jobCategoryId: jobCategoryId!,
+                experienceLevelId,
+                jobCategoryId,
                 screenCount: Number(screens),
-                uxEngagement: UX_ENGAGEMENT_MAP[workScope as string],
-                platformEnvironment: PLATFORM_ENV_MAP[platform as string],
-                addons: deliverables.map((d) => ADDON_MAP[d]),
+                uxEngagement: UX_ENGAGEMENT_MAP[workScope],
+                platformEnvironment: PLATFORM_ENV_MAP[platform],
+                addons: deliverables.map((d) => ADDON_MAP[d]).filter(Boolean),
                 negotiationTargetBudgetAmount: negotiationResult.targetBudgetAmount,
               });
             }
