@@ -9,10 +9,15 @@ interface Props {
   negotiationResult: EstimateNegotiationResult;
   onClose: () => void;
   onSaveTogether: () => Promise<void>;
+  // 이미 저장된 협상안을 다시 열어본 경우, 저장 버튼을 처음부터 잠긴 상태로 보여줘
+  // estimateAPI 재호출로 중복 저장되는 것을 막는다.
+  initialSaved?: boolean;
 }
 
-export default function NegotiationModal({ negotiationResult, onClose, onSaveTogether }: Props) {
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+export default function NegotiationModal({ negotiationResult, onClose, onSaveTogether, initialSaved }: Props) {
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">(
+    initialSaved ? "saved" : "idle",
+  );
 
   const handleSave = async () => {
     if (saveStatus === "saving" || saveStatus === "saved") return;

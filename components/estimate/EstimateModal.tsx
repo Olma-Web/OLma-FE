@@ -26,10 +26,15 @@ interface Props {
   onClose: () => void;
   // 이미 저장된 견적서를 다시 열어보는 경우(읽기 전용)에는 전달하지 않는다 — 저장 버튼이 없으면 중복 생성을 막을 수 있다.
   onSave?: (projectName?: string, negotiationTargetBudgetAmount?: number) => Promise<void>;
+  // 같은 견적을 이미 저장한 뒤 모달을 다시 연 경우, 저장 버튼을 처음부터 잠긴("저장됨") 상태로
+  // 보여줘 재클릭으로 인한 중복 저장을 막는다.
+  initialSaved?: boolean;
 }
 
-export default function EstimateModal({ result, nickname, onClose, onSave }: Props) {
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+export default function EstimateModal({ result, nickname, onClose, onSave, initialSaved }: Props) {
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">(
+    initialSaved ? "saved" : "idle",
+  );
   const projectNameInputRef = useRef<HTMLInputElement>(null);
 
   const {
