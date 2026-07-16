@@ -33,6 +33,8 @@ import {
   type SavedEstimateDetail,
 } from "@/lib/estimate/constants";
 
+const ESTIMATE_PROGRESS_KEY = "olma_estimate_progress";
+
 export default function EstimatePage() {
   const router = useRouter();
   const [jobCategoryId,     setJobCategoryId]     = useState<number | null>(null);
@@ -67,27 +69,65 @@ export default function EstimatePage() {
   const bottomRef   = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 온보딩 게이트를 타고 나갔다 돌아왔을 때 답변을 이어서 보여주기 위한 임시 저장.
-  // 서버에는 아무 영향 없는 순수 클라이언트 상태 복원이다.
+  // 온보딩 게이트를 타고 나갔다 돌아왔을 때, 그리고 새로고침/재방문 시에도 답변을 이어서
+  // 보여주기 위한 임시 저장. 서버에는 아무 영향 없는 순수 클라이언트 상태 복원이다.
   const restoredDraftRef = useRef(false);
   useEffect(() => {
-    const raw = sessionStorage.getItem("olma_estimate_draft");
-    if (!raw) return;
-    sessionStorage.removeItem("olma_estimate_draft");
+    const draftRaw = sessionStorage.getItem("olma_estimate_draft");
+    if (draftRaw) {
+      sessionStorage.removeItem("olma_estimate_draft");
+      localStorage.removeItem(ESTIMATE_PROGRESS_KEY);
+      try {
+        const draft = JSON.parse(draftRaw);
+        setJobCategoryId(draft.jobCategoryId);
+        setExperienceLevelId(draft.experienceLevelId);
+        setScreens(draft.screens);
+        setWorkScope(draft.workScope);
+        setPlatform(draft.platform);
+        setDeliverables(draft.deliverables);
+        setAnsweredCount(draft.answeredCount);
+        restoredDraftRef.current = true;
+      } catch {
+        // 손상된 저장값은 무시한다.
+      }
+      return;
+    }
+
+    const progressRaw = localStorage.getItem(ESTIMATE_PROGRESS_KEY);
+    if (!progressRaw) return;
     try {
-      const draft = JSON.parse(raw);
-      setJobCategoryId(draft.jobCategoryId);
-      setExperienceLevelId(draft.experienceLevelId);
-      setScreens(draft.screens);
-      setWorkScope(draft.workScope);
-      setPlatform(draft.platform);
-      setDeliverables(draft.deliverables);
-      setAnsweredCount(draft.answeredCount);
+      const progress = JSON.parse(progressRaw);
+      setJobCategoryId(progress.jobCategoryId);
+      setExperienceLevelId(progress.experienceLevelId);
+      setScreens(progress.screens);
+      setWorkScope(progress.workScope);
+      setPlatform(progress.platform);
+      setDeliverables(progress.deliverables);
+      setAnsweredCount(progress.answeredCount);
+      setResult(progress.result);
+      setHasClientBudget(progress.hasClientBudget);
+      setTargetBudget(progress.targetBudget);
+      setNegotiationResult(progress.negotiationResult);
       restoredDraftRef.current = true;
     } catch {
-      // 손상된 저장값은 무시한다.
+      localStorage.removeItem(ESTIMATE_PROGRESS_KEY);
     }
   }, []);
+
+  // 진행 중인 답변을 매 변경마다 저장해, 새로고침하거나 다시 들어와도 이어서 진행할 수 있게 한다.
+  useEffect(() => {
+    if (answeredCount === 0 && !result) {
+      localStorage.removeItem(ESTIMATE_PROGRESS_KEY);
+      return;
+    }
+    localStorage.setItem(ESTIMATE_PROGRESS_KEY, JSON.stringify({
+      jobCategoryId, experienceLevelId, screens, workScope, platform, deliverables,
+      answeredCount, result, hasClientBudget, targetBudget, negotiationResult,
+    }));
+  }, [
+    jobCategoryId, experienceLevelId, screens, workScope, platform, deliverables,
+    answeredCount, result, hasClientBudget, targetBudget, negotiationResult,
+  ]);
 
   useEffect(() => {
     const userId = Number(localStorage.getItem("userId"));
@@ -747,7 +787,10 @@ export default function EstimatePage() {
                 </div>
                 <div className="flex w-full max-w-[480px] gap-3">
                   <button
-                    onClick={() => router.push("/career?tab=estimates")}
+                    onClick={() => {
+                      localStorage.removeItem(ESTIMATE_PROGRESS_KEY);
+                      router.push("/career?tab=estimates");
+                    }}
                     className="flex-1 rounded-xl border border-line1 bg-white py-3 text-sm font-semibold text-titlefont2 transition hover:border-main75 hover:text-main100 cursor-pointer"
                   >
                     보관함 보기
@@ -969,7 +1012,10 @@ export default function EstimatePage() {
                 </div>
                 <div className="flex w-full max-w-[480px] gap-3">
                   <button
-                    onClick={() => router.push("/career?tab=estimates")}
+                    onClick={() => {
+                      localStorage.removeItem(ESTIMATE_PROGRESS_KEY);
+                      router.push("/career?tab=estimates");
+                    }}
                     className="flex-1 rounded-xl border border-line1 bg-white py-3 text-sm font-semibold text-titlefont2 transition hover:border-main75 hover:text-main100 cursor-pointer"
                   >
                     보관함 보기
