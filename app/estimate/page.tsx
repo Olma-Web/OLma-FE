@@ -60,6 +60,10 @@ export default function EstimatePage() {
   const [loadedEstimateBudgetAnswer, setLoadedEstimateBudgetAnswer] = useState<"yes" | "no" | null>(null);
   const [loadedEstimateTargetBudget, setLoadedEstimateTargetBudget] = useState("");
   const [loadedNegotiationSaved, setLoadedNegotiationSaved] = useState(false);
+  // 저장 버튼은 모달 내부 로컬 state라 모달을 다시 열면 초기화된다 — 같은 견적을 중복
+  // 저장하지 않도록 "이미 저장했는지"는 부모(page)가 기억하고 있다가 저장 버튼 자체를 숨긴다.
+  const [estimateSaved,    setEstimateSaved]    = useState(false);
+  const [negotiationSaved, setNegotiationSaved] = useState(false);
 
   // 답변이 확정된 질문 수. 답변 즉시(동기적으로) 증가해 방금 답한 말풍선이 유지되도록 하고,
   // 다음 질문의 노출만 isTyping 딜레이로 늦춘다.
@@ -108,6 +112,20 @@ export default function EstimatePage() {
       setHasClientBudget(progress.hasClientBudget);
       setTargetBudget(progress.targetBudget);
       setNegotiationResult(progress.negotiationResult);
+      setEstimateSaved(!!progress.estimateSaved);
+      setNegotiationSaved(!!progress.negotiationSaved);
+
+      // "이전 견적서 불러오기" 플로우 중이었다면 그 진행 상태도 함께 복원한다.
+      if (progress.selectedEstimateDetail) {
+        setSelectedPreviousEstimate(progress.selectedPreviousEstimate ?? null);
+        setSelectedEstimateDetail(progress.selectedEstimateDetail);
+        setLoadedEstimateBudgetAnswer(progress.loadedEstimateBudgetAnswer ?? null);
+        setLoadedEstimateTargetBudget(progress.loadedEstimateTargetBudget ?? "");
+        setLoadedNegotiationSaved(!!progress.loadedNegotiationSaved);
+        setShowReturningGreeting(true);
+        setShowPreviousEstimatesPicker(true);
+      }
+
       restoredDraftRef.current = true;
     } catch {
       localStorage.removeItem(ESTIMATE_PROGRESS_KEY);
@@ -115,18 +133,28 @@ export default function EstimatePage() {
   }, []);
 
   // 진행 중인 답변을 매 변경마다 저장해, 새로고침하거나 다시 들어와도 이어서 진행할 수 있게 한다.
+  // estimateSaved/negotiationSaved도 함께 저장해, 새로고침 후 저장 버튼을 다시 눌러 중복
+  // 저장하는 일이 없도록 한다. "이전 견적서 불러오기" 플로우(selectedEstimateDetail)도 동일하게
+  // 저장해, 새로고침해도 불러온 견적서와 협상 진행 상태가 유지되게 한다.
   useEffect(() => {
-    if (answeredCount === 0 && !result) {
+    const hasProgress = answeredCount > 0 || !!result || !!selectedEstimateDetail;
+    if (!hasProgress) {
       localStorage.removeItem(ESTIMATE_PROGRESS_KEY);
       return;
     }
     localStorage.setItem(ESTIMATE_PROGRESS_KEY, JSON.stringify({
       jobCategoryId, experienceLevelId, screens, workScope, platform, deliverables,
       answeredCount, result, hasClientBudget, targetBudget, negotiationResult,
+      estimateSaved, negotiationSaved,
+      selectedPreviousEstimate, selectedEstimateDetail,
+      loadedEstimateBudgetAnswer, loadedEstimateTargetBudget, loadedNegotiationSaved,
     }));
   }, [
     jobCategoryId, experienceLevelId, screens, workScope, platform, deliverables,
     answeredCount, result, hasClientBudget, targetBudget, negotiationResult,
+    estimateSaved, negotiationSaved,
+    selectedPreviousEstimate, selectedEstimateDetail,
+    loadedEstimateBudgetAnswer, loadedEstimateTargetBudget, loadedNegotiationSaved,
   ]);
 
   useEffect(() => {
@@ -265,6 +293,8 @@ export default function EstimatePage() {
     setNegotiationStatus("idle");
     setNegotiationResult(null);
     setNegotiationModalOpen(false);
+    setEstimateSaved(false);
+    setNegotiationSaved(false);
   };
 
   const handleNegotiationSubmit = async () => {
@@ -338,6 +368,8 @@ export default function EstimatePage() {
     setLoadedEstimateBudgetAnswer(null);
     setLoadedEstimateTargetBudget("");
     setLoadedNegotiationSaved(false);
+    setEstimateSaved(false);
+    setNegotiationSaved(false);
   };
 
   const formatMultiplier = (multiplier: number) =>
@@ -914,6 +946,7 @@ export default function EstimatePage() {
                         setNegotiationStatus("idle");
                         setNegotiationResult(null);
                         setNegotiationModalOpen(false);
+                        setNegotiationSaved(false);
                       }}
                       editDisabled={false}
                     />
@@ -966,8 +999,10 @@ export default function EstimatePage() {
                     setNegotiationResult(null);
                     setNegotiationStatus("idle");
                     setNegotiationModalOpen(false);
+                    setNegotiationSaved(false);
                   }}
-                  editDisabled={false}
+                  // "저장하기"를 눌러 백엔드에 반영된 뒤에는 수정을 막아, 다시 분석/저장해 중복 생성되는 것을 막는다.
+                  editDisabled={negotiationSaved}
                 />
                 <div className="flex items-start gap-3">
                   <AiAvatar />
@@ -1057,16 +1092,18 @@ export default function EstimatePage() {
           result={result}
           nickname={nickname}
           onClose={() => setShowModal(false)}
-          // 이전 견적서를 다시 열어본 경우(selectedEstimateDetail 존재)는 이미 저장된 견적이라
-          // 저장 버튼을 아예 숨긴다 — 안 그러면 estimateAPI.save()가 중복 견적을 새로 만든다.
+          // 이전 견적서를 다시 열어본 경우(selectedEstimateDetail 존재, 읽기 전용)에는 저장 버튼을
+          // 아예 숨긴다. 이미 저장한 견적은 initialSaved로 "저장됨" 잠금 상태로 열어, 안내는 유지하되
+          // estimateAPI.save()가 재호출되어 중복 견적이 생기는 것은 막는다.
+          initialSaved={estimateSaved}
           onSave={
             selectedEstimateDetail
               ? undefined
-              : (name) => {
+              : async (name) => {
                   if (!experienceLevelId || !jobCategoryId || !workScope || !platform) {
-                    return Promise.reject(new Error("필수 입력 값이 누락되었습니다."));
+                    throw new Error("필수 입력 값이 누락되었습니다.");
                   }
-                  return estimateAPI.save({
+                  await estimateAPI.save({
                     experienceLevelId,
                     jobCategoryId,
                     screenCount: Number(screens),
@@ -1076,6 +1113,7 @@ export default function EstimatePage() {
                     projectName: name,
                     negotiationTargetBudgetAmount: negotiationResult?.targetBudgetAmount,
                   });
+                  setEstimateSaved(true);
                 }
           }
         />
@@ -1085,6 +1123,7 @@ export default function EstimatePage() {
         <NegotiationModal
           negotiationResult={negotiationResult}
           onClose={() => setNegotiationModalOpen(false)}
+          initialSaved={selectedEstimateDetail ? loadedNegotiationSaved : negotiationSaved}
           onSaveTogether={async () => {
             // 로드된 견적서는 "저장하기"를 누른 시점에 비로소 기존 견적서(id)를 start/complete로 갱신한다.
             // (complete는 한 번 저장되면 덮어쓰기가 안 되므로 저장 전까지는 분석만 하고 저장을 미룬다.)
@@ -1105,6 +1144,10 @@ export default function EstimatePage() {
                 addons: deliverables.map((d) => ADDON_MAP[d]).filter(Boolean),
                 negotiationTargetBudgetAmount: negotiationResult.targetBudgetAmount,
               });
+              // 협상안과 함께 저장하면 기본 견적서도 함께 생성되므로, 별도 "견적서 저장" 버튼도 잠가
+              // 같은 견적이 중복 생성되지 않게 한다.
+              setNegotiationSaved(true);
+              setEstimateSaved(true);
             }
           }}
         />
