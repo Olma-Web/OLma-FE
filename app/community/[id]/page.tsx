@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ThumbsUp, MessageCircle, Send } from "lucide-react";
+import { ChevronLeft, ThumbsUp, MessageCircle, Send, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import Topbar from "@/components/topbar";
 import { communityAPI } from "@/lib/api";
 
@@ -22,8 +22,23 @@ interface Comment {
   parentCommentId: number | null;
   content: string;
   author: Author;
+  likeCount: number;
+  likedByMe: boolean;
   createdAt: string;
   replies: Comment[];
+}
+
+// 백엔드가 답글을 이미 부모 댓글의 replies로 중첩해서 내려줄 수도, parentCommentId만 채운
+// 평평한 배열로 내려줄 수도 있어서 두 경우 모두 안전하게 처리한다.
+interface RawComment {
+  id: number;
+  parentCommentId: number | null;
+  content: string;
+  author: Author;
+  likeCount: number;
+  likedByMe: boolean;
+  createdAt: string;
+  replies?: RawComment[];
 }
 
 interface PostDetail {
@@ -40,9 +55,39 @@ interface PostDetail {
   comments: Comment[];
 }
 
+function flattenRawComments(comments: RawComment[]): Omit<RawComment, "replies">[] {
+  const result: Omit<RawComment, "replies">[] = [];
+  const walk = (list: RawComment[]) => {
+    for (const { replies, ...rest } of list) {
+      result.push(rest);
+      if (replies?.length) walk(replies);
+    }
+  };
+  walk(comments);
+  return result;
+}
+
+function buildCommentTree(rawComments: RawComment[]): Comment[] {
+  const flatComments = flattenRawComments(rawComments);
+  const byId = new Map<number, Comment>(
+    flatComments.map((c) => [c.id, { ...c, replies: [] }])
+  );
+  const roots: Comment[] = [];
+
+  for (const comment of byId.values()) {
+    if (comment.parentCommentId != null && byId.has(comment.parentCommentId)) {
+      byId.get(comment.parentCommentId)!.replies.push(comment);
+    } else {
+      roots.push(comment);
+    }
+  }
+
+  return roots;
+}
+
 const CATEGORY_LABEL: Record<Category, string> = {
-  QNA: "질문",
-  INFO: "정보공유",
+  QNA: "Q&A",
+  INFO: "정보",
   FREE: "자유",
 };
 
@@ -77,6 +122,20 @@ function insertReply(comments: Comment[], parentId: number, reply: Comment): Com
   });
 }
 
+function editCommentInTree(comments: Comment[], commentId: number, content: string): Comment[] {
+  return comments.map((c) => {
+    if (c.id === commentId) return { ...c, content };
+    if (c.replies?.length) return { ...c, replies: editCommentInTree(c.replies, commentId, content) };
+    return c;
+  });
+}
+
+function deleteCommentFromTree(comments: Comment[], commentId: number): Comment[] {
+  return comments
+    .filter((c) => c.id !== commentId)
+    .map((c) => (c.replies?.length ? { ...c, replies: deleteCommentFromTree(c.replies, commentId) } : c));
+}
+
 function AuthorBadge({ author, time }: { author: Author; time?: string }) {
   const parts = [
     author.jobCategoryName ? stripUiUx(author.jobCategoryName) : null,
@@ -98,24 +157,115 @@ function AuthorBadge({ author, time }: { author: Author; time?: string }) {
   );
 }
 
+function ConfirmDialog({
+  title,
+  description,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  description: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
+        <p className="text-lg font-bold text-gray-900">{title}</p>
+        <p className="mt-3 text-sm text-gray-500">{description}</p>
+        <div className="mt-8 flex justify-end gap-3">
+          <button
+            onClick={onCancel}
+            className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
+          >
+            취소
+          </button>
+          <button
+            onClick={onConfirm}
+            className="rounded-lg bg-red-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-600"
+          >
+            삭제
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OptionsMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        onClick={() => setIsOpen((v) => !v)}
+        className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+      >
+        <MoreVertical size={18} />
+      </button>
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 top-full z-20 mt-1 w-32 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg">
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                onEdit();
+              }}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Pencil size={14} />
+              수정하기
+            </button>
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                onDelete();
+              }}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50"
+            >
+              <Trash2 size={14} />
+              삭제하기
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function CommentItem({
   comment,
   depth = 0,
+  currentUserId,
   replyingTo,
   onStartReply,
   onCancelReply,
   onSubmitReply,
+  onEditComment,
+  onDeleteComment,
 }: {
   comment: Comment;
   depth?: number;
+  currentUserId: number | null;
   replyingTo: number | null;
   onStartReply: (id: number) => void;
   onCancelReply: () => void;
   onSubmitReply: (parentId: number, content: string) => Promise<void>;
+  onEditComment: (commentId: number, content: string) => Promise<void>;
+  onDeleteComment: (commentId: number) => Promise<void>;
 }) {
   const [replyText, setReplyText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(comment.content);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isLiked, setIsLiked] = useState(comment.likedByMe);
+  const [likeCount, setLikeCount] = useState(comment.likeCount);
+  const [isLiking, setIsLiking] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const isReplying = replyingTo === comment.id;
+  const isAuthor = currentUserId != null && comment.author.id === currentUserId;
 
   const submit = async () => {
     if (!replyText.trim() || isSubmitting) return;
@@ -128,58 +278,145 @@ function CommentItem({
     }
   };
 
+  const saveEdit = async () => {
+    if (!editText.trim() || isSavingEdit) return;
+    setIsSavingEdit(true);
+    try {
+      await onEditComment(comment.id, editText.trim());
+      setIsEditing(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "댓글 수정에 실패했어요.");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const remove = async () => {
+    setShowDeleteConfirm(false);
+    try {
+      await onDeleteComment(comment.id);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "댓글 삭제에 실패했어요.");
+    }
+  };
+
+  const toggleLike = async () => {
+    if (isLiking) return;
+    setIsLiking(true);
+    const wasLiked = isLiked;
+    setIsLiked(!wasLiked);
+    setLikeCount((c) => c + (wasLiked ? -1 : 1));
+    try {
+      if (wasLiked) await communityAPI.unlikeComment(comment.id);
+      else await communityAPI.likeComment(comment.id);
+    } catch (err) {
+      setIsLiked(wasLiked);
+      setLikeCount((c) => c + (wasLiked ? 1 : -1));
+      alert(err instanceof Error ? err.message : "좋아요 처리에 실패했어요.");
+    } finally {
+      setIsLiking(false);
+    }
+  };
+
   return (
     <div className={depth > 0 ? "ml-10 border-l-2 border-gray-100 pl-4" : ""}>
       <div className="py-4">
         {/* 작성자 */}
-        <div className="mb-2">
+        <div className="mb-2 flex items-start justify-between">
           <AuthorBadge author={comment.author} time={timeAgo(comment.createdAt)} />
+          {isAuthor && (
+            <OptionsMenu
+              onEdit={() => {
+                setEditText(comment.content);
+                setIsEditing(true);
+              }}
+              onDelete={() => setShowDeleteConfirm(true)}
+            />
+          )}
         </div>
 
         {/* 본문 */}
-        <p className="text-sm text-gray-800 whitespace-pre-wrap pl-10">{comment.content}</p>
+        {isEditing ? (
+          <div className="flex flex-col gap-2 pl-10">
+            <textarea
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              rows={2}
+              className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-main100 focus:outline-none"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setIsEditing(false)}
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={saveEdit}
+                disabled={!editText.trim() || isSavingEdit}
+                className="rounded-lg bg-main100 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-800 whitespace-pre-wrap pl-10">{comment.content}</p>
+        )}
       </div>
 
       {/* 액션 */}
-      {depth === 0 && (
-        <div className="pb-4 pl-10 flex items-center justify-between text-xs text-gray-400">
+      <div className="pb-4 pl-10 flex items-center justify-between text-xs text-gray-400">
+        {depth === 0 ? (
           <button
             onClick={() => isReplying ? onCancelReply() : onStartReply(comment.id)}
             className="text-black hover:text-main100 transition-colors"
           >
             {isReplying ? "취소" : "답글쓰기"}
           </button>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              <ThumbsUp size={11} />
-              {0}
-            </span>
+        ) : (
+          <span />
+        )}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={toggleLike}
+            disabled={isLiking}
+            className={`flex items-center gap-1 transition-colors ${isLiked ? "text-main100" : "hover:text-main100"}`}
+          >
+            <ThumbsUp size={11} className={isLiked ? "fill-main100 text-main100" : ""} />
+            {likeCount}
+          </button>
+          {depth === 0 && (
             <span className="flex items-center gap-1">
               <MessageCircle size={11} />
               {comment.replies?.length ?? 0}
             </span>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* 답글 입력 */}
       {isReplying && (
-        <div className="pb-4 pl-10 flex gap-2">
-          <input
-            type="text"
-            value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder="답글을 입력하세요"
-            className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-main100 focus:outline-none"
-          />
-          <button
-            onClick={submit}
-            disabled={!replyText.trim() || isSubmitting}
-            className="shrink-0 rounded-lg bg-main100 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
-          >
-            등록
-          </button>
+        <div className="pb-4 pl-10">
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 mb-3">
+            <textarea
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              placeholder="답글을 입력하세요"
+              rows={3}
+              className="w-full resize-none bg-transparent text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none"
+            />
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={submit}
+              disabled={!replyText.trim() || isSubmitting}
+              className="flex items-center gap-1.5 rounded-xl bg-main100 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+            >
+              <Send size={14} />
+              등록하기
+            </button>
+          </div>
         </div>
       )}
 
@@ -191,13 +428,25 @@ function CommentItem({
               key={reply.id}
               comment={reply}
               depth={depth + 1}
+              currentUserId={currentUserId}
               replyingTo={replyingTo}
               onStartReply={onStartReply}
               onCancelReply={onCancelReply}
               onSubmitReply={onSubmitReply}
+              onEditComment={onEditComment}
+              onDeleteComment={onDeleteComment}
             />
           ))}
         </div>
+      )}
+
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="댓글을 삭제하시겠습니까?"
+          description="이 작업은 되돌릴 수 없습니다."
+          onCancel={() => setShowDeleteConfirm(false)}
+          onConfirm={remove}
+        />
       )}
     </div>
   );
@@ -215,6 +464,8 @@ export default function CommunityPostPage() {
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [commentText, setCommentText] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [showDeletePostConfirm, setShowDeletePostConfirm] = useState(false);
+  const currentUserId = typeof window !== "undefined" ? Number(localStorage.getItem("userId")) : null;
 
   const loadPost = useCallback(async () => {
     if (!postId || Number.isNaN(postId)) {
@@ -226,7 +477,7 @@ export default function CommunityPostPage() {
     setError(null);
     try {
       const data = await communityAPI.getPost(postId);
-      setPost(data);
+      setPost({ ...data, comments: buildCommentTree(data.comments) });
     } catch (err) {
       setError(err instanceof Error ? err.message : "게시글을 불러올 수 없어요.");
     } finally {
@@ -286,16 +537,44 @@ export default function CommunityPostPage() {
     }
   };
 
+  const editComment = async (commentId: number, content: string) => {
+    await communityAPI.updateComment(commentId, { content });
+    setPost((prev) => prev && { ...prev, comments: editCommentInTree(prev.comments, commentId, content) });
+  };
+
+  const deleteComment = async (commentId: number) => {
+    await communityAPI.deleteComment(commentId);
+    setPost(
+      (prev) =>
+        prev && {
+          ...prev,
+          comments: deleteCommentFromTree(prev.comments, commentId),
+          commentCount: Math.max(0, prev.commentCount - 1),
+        }
+    );
+  };
+
+  const deletePost = async () => {
+    if (!post) return;
+    setShowDeletePostConfirm(false);
+    try {
+      await communityAPI.deletePost(post.id);
+      router.push("/community");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "게시글 삭제에 실패했어요.");
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-white font-sans">
       <Topbar />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 md:px-6">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 md:px-6">
 
         {/* 목록으로 */}
         <button
           onClick={() => router.push("/community")}
-          className="mb-8 flex items-center gap-1 text-sm text-black hover:text-main100 transition-colors"
+          className="mb-8 flex items-center gap-1 text-sm font-semibold text-black hover:text-main100 transition-colors"
         >
           <ChevronLeft size={15} />
           목록으로 돌아가기
@@ -317,7 +596,15 @@ export default function CommunityPostPage() {
             {/* 작성자 + 시간 */}
             <div className="mb-4 flex items-start justify-between">
               <AuthorBadge author={post.author} />
-              <span className="text-xs text-gray-400 shrink-0">{timeAgo(post.createdAt)}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs text-gray-400">{timeAgo(post.createdAt)}</span>
+                {currentUserId != null && post.author.id === currentUserId && (
+                  <OptionsMenu
+                    onEdit={() => router.push(`/community/${post.id}/edit`)}
+                    onDelete={() => setShowDeletePostConfirm(true)}
+                  />
+                )}
+              </div>
             </div>
 
             {/* 제목 */}
@@ -340,16 +627,20 @@ export default function CommunityPostPage() {
 
             {/* 좋아요 / 댓글 */}
             <div className="flex items-center justify-between py-3 border-y border-gray-100 mb-6">
-              <div className="flex items-center gap-4 text-sm text-gray-500">
+              <div className="flex items-center gap-3 text-sm">
                 <button
                   onClick={toggleLike}
                   disabled={isLiking}
-                  className={`flex items-center gap-1.5 transition-colors ${post.likedByMe ? "text-main100" : "hover:text-main100"}`}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 transition-colors ${
+                    post.likedByMe
+                      ? "border-sky-100 bg-sky-100 text-sky-500"
+                      : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                  }`}
                 >
-                  <ThumbsUp size={15} className={post.likedByMe ? "fill-main100 text-main100" : ""} />
+                  <ThumbsUp size={15} className={post.likedByMe ? "text-sky-500" : ""} />
                   {post.likeCount}
                 </button>
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-gray-500">
                   <MessageCircle size={15} />
                   {post.commentCount}
                 </span>
@@ -370,7 +661,7 @@ export default function CommunityPostPage() {
               <button
                 onClick={submitTopLevelComment}
                 disabled={!commentText.trim() || isSubmittingComment}
-                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-main100 to-sub175 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-xl bg-main100 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
               >
                 <Send size={14} />
                 등록하기
@@ -388,10 +679,13 @@ export default function CommunityPostPage() {
                     <CommentItem
                       key={comment.id}
                       comment={comment}
+                      currentUserId={currentUserId}
                       replyingTo={replyingTo}
                       onStartReply={setReplyingTo}
                       onCancelReply={() => setReplyingTo(null)}
                       onSubmitReply={submitReply}
+                      onEditComment={editComment}
+                      onDeleteComment={deleteComment}
                     />
                   ))}
                 </div>
@@ -400,6 +694,15 @@ export default function CommunityPostPage() {
           </>
         )}
       </main>
+
+      {showDeletePostConfirm && (
+        <ConfirmDialog
+          title="게시글을 삭제하시겠습니까?"
+          description="이 작업은 되돌릴 수 없습니다."
+          onCancel={() => setShowDeletePostConfirm(false)}
+          onConfirm={deletePost}
+        />
+      )}
     </div>
   );
 }

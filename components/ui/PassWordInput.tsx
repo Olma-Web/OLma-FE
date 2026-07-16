@@ -1,9 +1,9 @@
 import { Eye, EyeOff } from "lucide-react";
 
 export function PasswordInput({
-  label, hint, value, onChange, onBlur, placeholder, show, onToggle, error,
+  label, hint, value, onChange, onBlur, placeholder, show, onToggle, error, success,
 }: {
-  label: string; hint?: string; value: string; placeholder: string; show: boolean; error: string;
+  label: string; hint?: string; value: string; placeholder: string; show: boolean; error: string; success?: boolean;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBlur?: () => void;
   onToggle: () => void;
@@ -21,6 +21,7 @@ export function PasswordInput({
           style={!show ? ({ WebkitTextSecurity: "disc" } as React.CSSProperties) : undefined}
           className={`w-full rounded-lg border px-5 py-3 pr-11 text-sm bg-bg2 text-titlefont2 placeholder:text-bodyfont4 focus:outline-none focus:ring-2 transition-all ${
             error ? "border-red-400 focus:border-red-400 focus:ring-red-100"
+                  : success ? "border-green-400 focus:border-green-400 focus:ring-green-100"
                   : "border-line1 focus:border-main75 focus:ring-main25"
           }`}
         />

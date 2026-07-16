@@ -12,8 +12,12 @@ type PostSort = "LATEST" | "LIKES" | "COMMENTS";
 interface JobCategoryOption {
   id: number;
   name: string;
+  slug: string;
   children?: JobCategoryOption[] | null;
 }
+
+// 커뮤니티는 UI/UX 디자이너 전용이라 전체 직군 트리 중 웹/앱 UI/UX만 필터로 노출
+const COMMUNITY_JOB_SLUGS = ["web-uiux", "app-uiux"];
 
 interface ExperienceLevelOption {
   id: number;
@@ -32,6 +36,7 @@ interface PostSummary {
   id: number;
   category: Category;
   title: string;
+  contentPreview: string;
   author: Author;
   imageUrls: string[];
   likeCount: number;
@@ -48,6 +53,12 @@ interface PostListResponse {
   totalElements: number;
   totalPages: number;
 }
+
+const CATEGORY_BADGE_LABEL: Record<Category, string> = {
+  QNA: "Q&A",
+  INFO: "정보/꿀팁",
+  FREE: "자유/푸념",
+};
 
 const CATEGORY_TABS: { label: string; value: Category | null }[] = [
   { label: "전체", value: null },
@@ -93,11 +104,13 @@ function PostCard({ post }: { post: PostSummary }) {
   return (
     <Link
       href={`/community/${post.id}`}
-      className="flex flex-col gap-1.5 rounded-2xl bg-white px-6 pt-[8px] pb-5 shadow-[0_2px_10px_rgba(0,0,0,0.10)] transition hover:shadow-[0_4px_14px_rgba(0,0,0,0.14)]"
+      className="flex flex-col rounded-2xl bg-white px-6 pt-5 pb-5 shadow-[0_2px_10px_rgba(0,0,0,0.10)] transition hover:shadow-[0_4px_14px_rgba(0,0,0,0.14)]"
     >
-      <div className="mt-2 flex items-center justify-between">
+      <div className="flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-sm text-gray-500">
-          <span className="h-5 w-5 shrink-0 rounded-full bg-main25" />
+          <span className="rounded-lg bg-main25 px-2 py-1.5 text-xs font-semibold text-main100">
+            {CATEGORY_BADGE_LABEL[post.category]}
+          </span>
           <span className="font-semibold text-gray-700">{post.author.nickname}</span>
           {(post.author.jobCategoryName || post.author.experienceLevelLabel) && (
             <span className="text-xs font-semibold text-main100">
@@ -111,7 +124,7 @@ function PostCard({ post }: { post: PostSummary }) {
         <span className="text-xs text-gray-400">{timeAgo(post.createdAt)}</span>
       </div>
 
-      <div className="mt-2 flex items-center gap-3">
+      <div className="mt-2.5 flex items-center gap-3">
         <p className="flex-1 truncate text-base font-bold text-gray-900">{post.title}</p>
         {post.imageUrls.length > 0 && (
           <span className="flex shrink-0 items-center gap-1 text-xs text-gray-400">
@@ -121,7 +134,11 @@ function PostCard({ post }: { post: PostSummary }) {
         )}
       </div>
 
-      <div className="flex items-center justify-end gap-3 text-sm text-gray-400">
+      {post.contentPreview && (
+        <p className="mt-2 line-clamp-1 text-sm font-medium text-gray-500">{post.contentPreview}</p>
+      )}
+
+      <div className="mt-2 flex items-center justify-end gap-3 text-sm text-gray-400">
         <span className="flex items-center gap-1">
           <ThumbsUp size={14} />
           {post.likeCount}
@@ -157,7 +174,7 @@ export default function CommunityPage() {
         jobCategoryId: jobCategoryId ?? undefined,
         experienceLevelId: experienceLevelId ?? undefined,
         page,
-        size: 20,
+        size: 5,
       });
       setData(result);
     } catch (err) {
@@ -178,7 +195,11 @@ export default function CommunityPage() {
           referenceAPI.getJobCategories(),
           referenceAPI.getExperienceLevels(),
         ]);
-        setJobOptions(flattenJobCategories(categories ?? []));
+        setJobOptions(
+          flattenJobCategories(categories ?? []).filter((option) =>
+            COMMUNITY_JOB_SLUGS.includes(option.slug)
+          )
+        );
         setLevelOptions(levels ?? []);
       } catch {
         setJobOptions([]);
@@ -230,19 +251,25 @@ export default function CommunityPage() {
 
         {/* 카테고리 탭 */}
         <div className="mt-6 flex flex-wrap gap-2">
-          {CATEGORY_TABS.map((tab) => (
-            <button
-              key={tab.label}
-              onClick={() => changeCategory(tab.value)}
-              className={`rounded-lg border px-4 py-2 text-sm font-semibold transition-all ${
-                category === tab.value
-                  ? "border-main100 bg-main25 text-main100"
-                  : "border-gray-200 text-gray-500 hover:bg-gray-50"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {CATEGORY_TABS.map((tab) => {
+            const isActive = category === tab.value;
+            const isDimmed = category === null && tab.value !== null;
+            return (
+              <button
+                key={tab.label}
+                onClick={() => changeCategory(tab.value)}
+                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition-all ${
+                  isActive
+                    ? "border-main100 bg-main25 text-main100"
+                    : isDimmed
+                    ? "border-gray-200 bg-gray-100 text-gray-400"
+                    : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -279,7 +306,7 @@ export default function CommunityPage() {
                 <option value="">전체 직군</option>
                 {jobOptions.map((option) => (
                   <option key={option.id} value={option.id}>
-                    {stripUiUx(option.name)}
+                    {option.name}
                   </option>
                 ))}
               </select>
@@ -330,7 +357,7 @@ export default function CommunityPage() {
                   <p className="text-sm text-gray-400">아직 게시글이 없어요.</p>
                 </div>
               ) : (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
                   {data.posts.map((post) => (
                     <PostCard key={post.id} post={post} />
                   ))}

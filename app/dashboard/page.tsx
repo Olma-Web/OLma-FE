@@ -175,12 +175,20 @@ function PercentileBand({
     { label: "프리미엄", from: benchmark.p75, to: benchmark.p90, className: "bg-[#fde2e2]" },
   ];
 
+  const labelPositions = [
+    { value: benchmark.p10, pct: 0 },
+    { value: benchmark.p25, pct: 25 },
+    { value: benchmark.median, pct: 50 },
+    { value: benchmark.p75, pct: 75 },
+    { value: benchmark.p90, pct: 100 },
+  ];
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-gray-900">시장 포지션 밴드</h2>
-          <p className="mt-1 text-sm text-gray-500">월 환산 단가 기준 분위수 범위입니다.</p>
+          <p className="mt-1 text-sm text-gray-500">내 위치 기준 분위수 범위입니다.</p>
         </div>
         <div className="text-right text-sm">
           <p className="font-bold text-main100">{getPositionLabel(benchmark.userPercentile)}</p>
@@ -192,19 +200,24 @@ function PercentileBand({
 
       <div className="mt-5">
         <div className="relative h-12 overflow-visible rounded-lg border border-gray-200">
-          <div className="grid h-full grid-cols-4 overflow-hidden rounded-lg">
-            {segments.map((segment) => (
-              <div key={segment.label} className={`${segment.className} px-2 py-2`}>
-                <p className="truncate text-xs font-semibold text-gray-700">{segment.label}</p>
-                <p className="truncate text-[11px] text-gray-600">
-                  {segment.from}-{segment.to}만
-                </p>
-              </div>
-            ))}
+          <div className="flex h-full overflow-hidden rounded-lg">
+            {segments.map((segment) => {
+              return (
+                <div
+                  key={segment.label}
+                  className={`${segment.className} px-2 py-2 flex-1`}
+                >
+                  <p className="truncate text-xs font-semibold text-gray-700">{segment.label}</p>
+                  <p className="truncate text-[11px] text-gray-600">
+                    {segment.from}-{segment.to}만
+                  </p>
+                </div>
+              );
+            })}
           </div>
           {markerPct != null && (
             <div
-              className="absolute top-[-7px] flex -translate-x-1/2 flex-col items-center"
+              className="absolute top-[-25px] flex -translate-x-1/2 flex-col items-center"
               style={{ left: `${markerPct}%` }}
             >
               <span className="rounded-md bg-gray-900 px-2 py-0.5 text-[11px] font-semibold text-white">
@@ -214,12 +227,24 @@ function PercentileBand({
             </div>
           )}
         </div>
-        <div className="mt-3 grid grid-cols-5 gap-2 text-center text-xs text-gray-500">
-          <span>P10 {benchmark.p10}만</span>
-          <span>P25 {benchmark.p25}만</span>
-          <span>중앙 {benchmark.median}만</span>
-          <span>P75 {benchmark.p75}만</span>
-          <span>P90 {benchmark.p90}만</span>
+        <div className="relative h-6 mt-3">
+          {labelPositions.map((pos, idx) => {
+            let alignClass = "text-center -translate-x-1/2";
+            if (idx === 0) {
+              alignClass = "text-left";
+            } else if (idx === labelPositions.length - 1) {
+              alignClass = "text-right -translate-x-full";
+            }
+            return (
+              <div
+                key={idx}
+                className={`absolute text-xs text-gray-500 whitespace-nowrap ${alignClass}`}
+                style={{ left: `${pos.pct}%` }}
+              >
+                {pos.value}만
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -305,7 +330,7 @@ function BenchmarkExplorer({
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs font-semibold text-gray-600">
-          내 월 환산 단가
+          내 위치
           <input
             type="number"
             min="1"
@@ -623,18 +648,11 @@ export default function MarketDashboard() {
         setSelectedWorkFormat(latest?.workFormat ?? "");
         setCustomAmount(getBenchmarkAmount(latest)?.toString() ?? "");
 
-        // localStorage에 저장된 ID 목록 중 하나라도 서버에 존재하면 "저장됨"
+        // 이미 저장된 기록이 있으면 saveStatus를 "saved"로 설정
         const raw = localStorage.getItem("careerSavedIds");
         const savedIds: number[] = raw ? JSON.parse(raw) : [];
         if (savedIds.length > 0) {
-          const checks = await Promise.allSettled(
-            savedIds.map((id) => careerSaveAPI.getById(id))
-          );
-          const surviving = savedIds.filter((_, i) => checks[i].status === "fulfilled");
-          if (surviving.length !== savedIds.length) {
-            localStorage.setItem("careerSavedIds", JSON.stringify(surviving));
-          }
-          if (surviving.length > 0) setSaveStatus("saved");
+          setSaveStatus("saved");
         }
 
         if (!profile.jobCategoryId) {
@@ -675,8 +693,24 @@ export default function MarketDashboard() {
     loadBenchmark();
   }, [customAmount, isLoading, selectedExperienceLevelId, selectedJobCategoryId, selectedWorkFormat]);
 
+  useEffect(() => {
+    if (!latestSubmission) return;
+
+    const raw = localStorage.getItem("careerSavedIds");
+    const savedIds: number[] = raw ? JSON.parse(raw) : [];
+
+    // 새로운 submission이 들어오면 해당 기록이 저장되지 않은 것이므로 saveStatus를 "idle"로 리셋
+    // 최신 submission의 createdAt 기반으로 판별
+    if (submissions.length > 0 && saveStatus === "saved") {
+      setSaveStatus("idle");
+    }
+  }, [submissions.length]);
+
   const handleSave = () => {
     if (saveStatus === "saving" || saveStatus === "saved") return;
+    const today = new Date();
+    const formattedDate = `${String(today.getFullYear()).slice(-2)}.${String(today.getMonth() + 1).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")}`;
+    setProjectName(`${formattedDate} 프로젝트`);
     setShowProjectModal(true);
   };
 
@@ -745,7 +779,7 @@ export default function MarketDashboard() {
     selectedJobLabel,
     selectedLevelLabel,
     workFormatLabel(selectedWorkFormat),
-    latestSubmission?.amountUnit === "TOTAL" ? "월 환산 비교" : "월 단가 비교",
+    latestSubmission?.amountUnit === "TOTAL" ? "건별 외주 계약" : "월 단위 계약",
   ].filter(Boolean) as string[];
 
   const barData: BarData[] = (benchmark?.distribution ?? []).map((b) => {
@@ -812,11 +846,11 @@ export default function MarketDashboard() {
           <button
             onClick={handleSave}
             disabled={saveStatus === "saving" || saveStatus === "saved"}
-            className="flex items-center gap-1.5 rounded-lg border border-main100 px-4 py-2 text-sm font-semibold text-main100 transition hover:bg-main25 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-main100 px-4 py-2 text-sm font-semibold text-main100 transition hover:bg-main25 disabled:border-line1 disabled:text-bodyfont4 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Image src="/save.svg" alt="" width={15} height={20} />
             {saveStatus === "saving" && "저장 중..."}
-            {saveStatus === "saved" && "저장되었습니다"}
+            {saveStatus === "saved" && "이미 저장되었습니다"}
             {saveStatus === "idle" && "커리어 보관함에 저장"}
           </button>
         </div>
@@ -848,7 +882,7 @@ export default function MarketDashboard() {
             caption={reliability.label}
           />
           <StatCard
-            label="내 월 환산 단가"
+            label="내 위치"
             value={userPosition}
             caption={latestSubmission?.amountUnit === "TOTAL" ? "총액을 기간 기준으로 환산" : "입력 월 단가 기준"}
           />
@@ -903,48 +937,70 @@ export default function MarketDashboard() {
       {/* Project name modal */}
       {showProjectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-lg">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
             <button
               onClick={() => {
                 setShowProjectModal(false);
                 setProjectName("");
               }}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+              className="absolute right-6 top-6 text-gray-400 hover:text-gray-600 text-2xl"
             >
               ✕
             </button>
-            <h2 className="text-lg font-bold text-gray-900">내 단가 기록 저장하기</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              이 문서 결과를 사용할 기획/프로젝트 이름을 설정하세요.
+
+            <h2 className="text-2xl font-bold text-titlefont1 mb-2">내 단가 기록 저장하기</h2>
+            <p className="text-sm text-bodyfont3 mb-6">
+              이 분석 결과를 나중에 찾을 수 있도록 이름을 붙여 분류에 옮겨두세요.
             </p>
-            <div className="mt-4">
-              <label className="block text-sm font-semibold text-gray-700">
+
+            <div className="mb-8">
+              <label className="block text-sm font-bold text-titlefont1 mb-3">
                 프로젝트명
               </label>
               <input
                 type="text"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                placeholder="예: 2024년 Q1 프로젝트"
-                className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-main100 focus:outline-none"
+                placeholder="프로젝트명 입력"
+                className="w-full rounded-lg bg-gray-100 px-4 py-3 text-sm text-titlefont2 placeholder:text-bodyfont4 focus:outline-none focus:ring-2 focus:ring-main100"
               />
             </div>
-            <div className="mt-6 flex gap-3">
+
+            <div className="mb-8 rounded-lg bg-gray-50 px-5 py-6 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-bodyfont3">직군</span>
+                <span className="font-medium text-titlefont1">{userProfile?.jobCategoryName || "-"}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-bodyfont3">경력</span>
+                <span className="font-medium text-titlefont1">{userProfile?.experienceLevelLabel || "-"}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-bodyfont3">계약방식</span>
+                <span className="font-medium text-titlefont1">{workFormatLabel(latestSubmission?.workFormat)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-bodyfont3">내 단가</span>
+                <span className="font-medium text-titlefont1">{userPosition}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleSaveWithProject}
+                disabled={saveStatus === "saving" || !projectName.trim()}
+                className="flex-1 rounded-2xl bg-main100 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saveStatus === "saving" ? "저장 중..." : "저장하기"}
+              </button>
               <button
                 onClick={() => {
                   setShowProjectModal(false);
                   setProjectName("");
                 }}
-                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                className="flex-1 rounded-2xl border-2 border-neutral-200 px-4 py-3 text-sm font-semibold text-titlefont1 transition hover:bg-gray-50"
               >
                 취소
-              </button>
-              <button
-                onClick={handleSaveWithProject}
-                disabled={saveStatus === "saving"}
-                className="flex-1 rounded-lg bg-main100 px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#6a5ee6] disabled:opacity-50"
-              >
-                {saveStatus === "saving" ? "저장 중..." : "저장하기"}
               </button>
             </div>
           </div>

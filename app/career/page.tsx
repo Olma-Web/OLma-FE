@@ -25,6 +25,27 @@ interface SubmissionItem {
   projectName?: string;
 }
 
+interface EstimateNegotiationDisplay {
+  status: string;
+  currentAmount: number;
+  targetBudgetAmount: number;
+  gapAmount: number;
+  recommendedOptionType?: string | null;
+  options: {
+    type: string;
+    title: string;
+    adjustedAmount: number;
+    savingAmount: number;
+    gapAfterAdjustment: number;
+    adjustedScreenCount: number;
+    uxEngagement: string;
+    addons: string[];
+    adjustments: string[];
+    clientMessage: string;
+  }[];
+  clientMessage: string;
+}
+
 interface EstimateItem {
   id: number;
   experienceLevelLabel: string;
@@ -35,26 +56,9 @@ interface EstimateItem {
   addons: string[];
   addonPercent: number;
   finalAmount: number;
-  negotiationResult?: {
-    status: string;
-    currentAmount: number;
-    targetBudgetAmount: number;
-    gapAmount: number;
-    recommendedOptionType?: string | null;
-    options: {
-      type: string;
-      title: string;
-      adjustedAmount: number;
-      savingAmount: number;
-      gapAfterAdjustment: number;
-      adjustedScreenCount: number;
-      uxEngagement: string;
-      addons: string[];
-      adjustments: string[];
-      clientMessage: string;
-    }[];
-    clientMessage: string;
-  } | null;
+  negotiationResult?: EstimateNegotiationDisplay | null;
+  negotiationSimulationStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+  negotiationSimulationState?: EstimateNegotiationDisplay | null;
   createdAt: string;
   projectName?: string;
 }
@@ -90,13 +94,76 @@ function amountUnitLabel(unit: string): string {
   return unit;
 }
 
+function getSubmissionTypeLabel(type: string): { label: string; color: string } {
+  if (type === "TRACK_B") {
+    return { label: "목표 단가", color: "bg-[#FFDEF5] text-[#B74E97]" };
+  }
+  if (type === "TRACK_A") {
+    return { label: "실제 단가", color: "bg-sub50 text-sub175" };
+  }
+  return { label: type, color: "bg-gray-100 text-gray-700" };
+}
+
 function formatAmount(amount: number): string {
   if (amount >= 10000) {
     const man = Math.floor(amount / 10000);
     const rest = amount % 10000;
-    return rest > 0 ? `₩${man}억 ${rest}만 원` : `₩${man}억 원`;
+    return rest > 0 ? `${man}억 ${rest}만 원` : `${man}억 원`;
   }
-  return `₩${amount}만 원`;
+  return `${amount}만 원`;
+}
+
+function getBenchmarkAmount(submission: SubmissionItem | null): number | null {
+  if (!submission) return null;
+  return (submission as any).normalizedMonthly ?? submission.amount;
+}
+
+function TrendCard({ submissions }: { submissions: SubmissionItem[] }) {
+  const values = submissions
+    .map((item) => getBenchmarkAmount(item))
+    .filter((value): value is number => value != null);
+
+  if (values.length === 0) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
+        <h2 className="text-base font-bold text-gray-900">내 단가 추세</h2>
+        <p className="mt-2 text-sm text-gray-500">단가 기록을 추가하면 변화 추세를 확인할 수 있습니다.</p>
+      </div>
+    );
+  }
+
+  const latest = values[0];
+  const previous = values[1] ?? null;
+  const diffPct = previous ? Math.round(((latest - previous) / previous) * 100) : null;
+  const recentAverage = Math.round(values.slice(0, 3).reduce((sum, value) => sum + value, 0) / Math.min(values.length, 3));
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
+      <h2 className="text-base font-bold text-gray-900">내 단가 추세</h2>
+      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-lg bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-500">최근 변화</p>
+          <p className={`mt-1 text-lg font-bold ${diffPct != null && diffPct >= 0 ? "text-main100" : "text-[#b45309]"}`}>
+            {diffPct != null ? `${diffPct >= 0 ? "+" : ""}${diffPct}%` : "-"}
+          </p>
+        </div>
+        <div className="rounded-lg bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-500">최근 3건 평균</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">{recentAverage}만</p>
+        </div>
+        <div className="rounded-lg bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-500">최고 기록</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">{max}만</p>
+        </div>
+        <div className="rounded-lg bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-500">최저 기록</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">{min}만</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function toMan(won: number): number {
@@ -115,6 +182,11 @@ export default function CareerPage() {
   const [expandedEstimateId, setExpandedEstimateId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [editingType, setEditingType] = useState<"submission" | "estimate" | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const getUserId = () => {
     if (typeof window === "undefined") return null;
@@ -173,6 +245,12 @@ export default function CareerPage() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") === "estimates") setTab("estimates");
+  }, []);
+
   const deleteSubmission = async (id: number) => {
     await submissionDeleteAPI.delete(id);
     setSubmissions((prev) => prev.filter((s) => s.id !== id));
@@ -184,6 +262,45 @@ export default function CareerPage() {
   const deleteEstimate = async (id: number) => {
     await estimateAPI.delete(id);
     setEstimates((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  const openEditModal = (type: "submission" | "estimate", id: number, currentName: string) => {
+    setEditingType(type);
+    setEditingId(id);
+    setEditingName(currentName);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditName = async () => {
+    if (!editingName.trim()) {
+      alert("프로젝트명을 입력해주세요");
+      return;
+    }
+
+    try {
+      if (editingType === "submission" && editingId) {
+        await careerSaveAPI.updateProjectName(editingId, editingName);
+        setSubmissions((prev) =>
+          prev.map((item) =>
+            item.id === editingId ? { ...item, projectName: editingName } : item
+          )
+        );
+      } else if (editingType === "estimate" && editingId) {
+        await estimateAPI.updateProjectName(editingId, editingName);
+        setEstimates((prev) =>
+          prev.map((item) =>
+            item.id === editingId ? { ...item, projectName: editingName } : item
+          )
+        );
+      }
+
+      setShowEditModal(false);
+      setEditingType(null);
+      setEditingId(null);
+      setEditingName("");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "저장에 실패했습니다");
+    }
   };
 
   if (isLoading) {
@@ -234,7 +351,7 @@ export default function CareerPage() {
               <p className="text-lg font-bold text-gray-900">{profile?.nickname ?? "User"} 님</p>
             </div>
             <Link
-              href="/onboarding"
+              href="/onboarding?mode=spec-update"
               className="flex items-center gap-1.5 rounded-lg border border-main100 px-3 py-1.5 text-xs font-semibold text-main100 transition hover:bg-[#f3f1ff]"
             >
               <Pencil size={12} />
@@ -255,6 +372,11 @@ export default function CareerPage() {
               <span className="font-bold text-gray-900">{certLabel}</span>
             </span>
           </div>
+        </div>
+
+        {/* 내 단가 추세 */}
+        <div className="mt-6">
+          <TrendCard submissions={submissions} />
         </div>
 
         {/* 탭 */}
@@ -286,9 +408,6 @@ export default function CareerPage() {
           <div className="mt-6">
             <div className="mb-4 flex items-center gap-2">
               <h2 className="text-base font-bold text-gray-900">단가 기록</h2>
-              <span className="rounded-sm bg-sub50 px-2 py-0.5 text-xs font-semibold text-sub175">
-                실제 데이터
-              </span>
             </div>
 
             {submissions.length === 0 ? (
@@ -308,35 +427,43 @@ export default function CareerPage() {
                     key={item.id}
                     className="rounded-2xl bg-[#F5F5F5] px-6 py-5"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex flex-1 flex-col gap-2">
-                        <div className="flex items-center gap-2">
+                    <div className="flex center gap-6">
+                      <div className="flex flex-col gap-1 text-center">
+                        <div className="relative group">
                           <span className="text-base font-bold text-main100">
                             {item.projectName || "프로젝트명 미설정"}
                           </span>
-                          <span className="text-xs text-gray-400">{timeAgo(item.createdAt)}</span>
+                          <button
+                            onClick={() => openEditModal("submission", item.id, item.projectName || "")}
+                            className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity px-4 py-2 bg-white rounded-xl shadow-lg flex items-center gap-2 whitespace-nowrap z-10"
+                          >
+                            <Pencil size={16} className="text-gray-400" />
+                            <span className="text-sm font-semibold text-gray-600">이름 변경하기</span>
+                          </button>
                         </div>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="flex items-center gap-1">
-                            <span className="text-gray-500">직군</span>
-                            <span className="font-bold text-gray-900">{item.jobCategoryName}</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="text-gray-500">경력</span>
-                            <span className="font-bold text-gray-900">{item.experienceLevelLabel}</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="text-gray-500">근무</span>
-                            <span className="font-bold text-gray-900">{workFormatLabel(item.workFormat)}</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="text-gray-500">계약</span>
-                            <span className="font-bold text-gray-900">{amountUnitLabel(item.amountUnit)}</span>
-                          </span>
-                        </div>
+                        <span className="text-xs text-gray-400">{timeAgo(item.createdAt)}</span>
                       </div>
-                      <div className="flex shrink-0 items-center gap-5">
-                        <p className="text-base font-bold text-main100 whitespace-nowrap">
+                      <div className="flex flex-1 items-center gap-4 text-sm">
+                        <span className="flex items-center gap-1">
+                          <span className="text-gray-500">직군</span>
+                          <span className="font-bold text-gray-900">{item.jobCategoryName}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-gray-500">경력</span>
+                          <span className="font-bold text-gray-900">{item.experienceLevelLabel}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-gray-500">근무</span>
+                          <span className="font-bold text-gray-900">{workFormatLabel(item.workFormat)}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-gray-500">계약</span>
+                          <span className="font-bold text-gray-900">{amountUnitLabel(item.amountUnit)}</span>
+                        </span>
+                        <span className={`rounded-sm px-2 py-0.5 text-xs font-semibold ${getSubmissionTypeLabel(item.submissionType).color}`}>
+                          {getSubmissionTypeLabel(item.submissionType).label}
+                        </span>
+                        <p className="text-base font-bold text-main100 whitespace-nowrap ml-auto">
                           {formatAmount(item.amount)}
                         </p>
                         <button
@@ -387,19 +514,34 @@ export default function CareerPage() {
                   const baseRatePerScreen = step1BasicFee / est.screenCount;
                   const step4AddonFee = est.finalAmount - step3PlatformFee;
 
+                  // 협상 시뮬레이터를 새 방식(start/complete)으로 진행한 경우 negotiationResult 대신
+                  // negotiationSimulationState에 결과가 저장되므로 둘 다 확인한다.
+                  const negotiation =
+                    est.negotiationResult ??
+                    (est.negotiationSimulationStatus === "COMPLETED" ? est.negotiationSimulationState : null);
+
                   return (
                     <li
                       key={est.id}
-                      className="rounded-2xl bg-[#F5F5F5] px-6 py-5"
+                      className="rounded-2xl bg-white px-6 py-5 border border-gray-200 shadow-sm"
                     >
                       <div className="flex items-center justify-between gap-4 mb-4">
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-md bg-sub50 px-2 py-0.5 text-xs font-bold text-sub175">
-                            기본 견적
-                          </span>
-                          <span className="text-base font-bold text-gray-900">
-                            {est.projectName || estimateFallbackName(est)}
-                          </span>
+                        <div className="relative group flex items-center gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-md bg-sub50 px-2 py-0.5 text-xs font-bold text-sub175">
+                              기본 견적
+                            </span>
+                            <span className="text-base font-bold text-gray-900">
+                              {est.projectName || estimateFallbackName(est)}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => openEditModal("estimate", est.id, est.projectName || estimateFallbackName(est))}
+                            className="absolute -top-10 left-0 opacity-0 group-hover:opacity-100 transition-opacity px-4 py-2 bg-white rounded-xl shadow-lg flex items-center gap-2 whitespace-nowrap z-10"
+                          >
+                            <Pencil size={16} className="text-gray-400" />
+                            <span className="text-sm font-semibold text-gray-600">이름 변경하기</span>
+                          </button>
                           <span className="text-xs text-gray-400">{timeAgo(est.createdAt)}</span>
                         </div>
                         <button
@@ -432,11 +574,11 @@ export default function CareerPage() {
                         )}
                         <div className="flex justify-between items-center py-3">
                           <span className="font-semibold text-main100">권장 최소 방어 견적</span>
-                          <span className="text-lg font-bold text-main100">₩{toMan(est.finalAmount).toLocaleString()}만 원</span>
+                          <span className="text-lg font-bold text-main100">{toMan(est.finalAmount).toLocaleString()}만 원</span>
                         </div>
                       </div>
 
-                      {est.negotiationResult && (
+                      {negotiation && (
                         <>
                           <button
                             onClick={() =>
@@ -461,25 +603,25 @@ export default function CareerPage() {
                                 <div className="flex justify-between gap-3">
                                   <span className="text-gray-500">클라이언트 예산</span>
                                   <span className="font-bold text-gray-900">
-                                    ₩{toMan(est.negotiationResult.targetBudgetAmount).toLocaleString()}만 원
+                                    {toMan(negotiation.targetBudgetAmount).toLocaleString()}만 원
                                   </span>
                                 </div>
                                 <div className="mt-2 flex justify-between gap-3">
                                   <span className="text-gray-500">예산 차이</span>
                                   <span className="font-bold text-main100">
-                                    ₩{toMan(est.negotiationResult.gapAmount).toLocaleString()}만 원
+                                    {toMan(negotiation.gapAmount).toLocaleString()}만 원
                                   </span>
                                 </div>
                                 <p className="mt-2 text-xs leading-5 text-gray-500">
-                                  {est.negotiationResult.clientMessage}
+                                  {negotiation.clientMessage}
                                 </p>
                               </div>
 
-                              {est.negotiationResult.options.map((option) => (
+                              {negotiation.options.map((option) => (
                                 <div
                                   key={`${est.id}-${option.type}`}
                                   className={`rounded-xl border px-4 py-3 ${
-                                    est.negotiationResult?.recommendedOptionType === option.type
+                                    negotiation.recommendedOptionType === option.type
                                       ? "border-main100 bg-main25"
                                       : "border-gray-200 bg-white"
                                   }`}
@@ -488,14 +630,14 @@ export default function CareerPage() {
                                     <div>
                                       <p className="text-sm font-bold text-gray-900">
                                         {option.title}
-                                        {est.negotiationResult?.recommendedOptionType === option.type && (
+                                        {negotiation.recommendedOptionType === option.type && (
                                           <span className="ml-2 rounded-md bg-main100 px-2 py-0.5 text-xs text-white">
                                             추천
                                           </span>
                                         )}
                                       </p>
                                       <p className="mt-1 text-xs text-gray-500">
-                                        조정 후 ₩{toMan(option.adjustedAmount).toLocaleString()}만 원 · 절감 ₩{toMan(option.savingAmount).toLocaleString()}만 원
+                                        조정 후 {toMan(option.adjustedAmount).toLocaleString()}만 원 · 절감 {toMan(option.savingAmount).toLocaleString()}만 원
                                       </p>
                                     </div>
                                     <span className="shrink-0 text-xs font-semibold text-gray-500">
@@ -523,6 +665,41 @@ export default function CareerPage() {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Edit Modal */}
+        {showEditModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+            <div className="rounded-2xl bg-white px-6 py-8 shadow-xl max-w-md w-full">
+              <h3 className="mb-6 text-xl font-bold text-gray-900">이름 변경하기</h3>
+              <input
+                type="text"
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                placeholder="프로젝트명을 입력해주세요"
+                className="w-full rounded-lg border border-line1 bg-bg2 px-4 py-3 text-base text-titlefont2 placeholder:text-bodyfont4 focus:outline-none focus:ring-2 focus:ring-main75 focus:border-main100"
+              />
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingType(null);
+                    setEditingId(null);
+                    setEditingName("");
+                  }}
+                  className="flex-1 rounded-lg border border-line1 px-4 py-2.5 text-base font-semibold text-titlefont2 transition hover:bg-bg2"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSaveEditName}
+                  className="flex-1 rounded-lg bg-main100 px-4 py-2.5 text-base font-semibold text-white transition hover:brightness-105"
+                >
+                  저장
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>
