@@ -855,20 +855,6 @@ export default function MarketDashboard() {
           </button>
         </div>
 
-        <BenchmarkExplorer
-          jobOptions={jobOptions}
-          levelOptions={levelOptions}
-          selectedJobCategoryId={selectedJobCategoryId}
-          selectedExperienceLevelId={selectedExperienceLevelId}
-          selectedWorkFormat={selectedWorkFormat}
-          customAmount={customAmount}
-          isLoading={isBenchmarkLoading}
-          onJobChange={setSelectedJobCategoryId}
-          onLevelChange={setSelectedExperienceLevelId}
-          onWorkFormatChange={setSelectedWorkFormat}
-          onAmountChange={setCustomAmount}
-        />
-
         {/* Stat cards */}
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatCard
@@ -899,10 +885,6 @@ export default function MarketDashboard() {
 
         <div className="mt-5">
           <PercentileBand benchmark={benchmark} userAmount={userBenchmarkAmount} />
-        </div>
-
-        <div className="mt-5">
-          <TrendCard submissions={submissions} />
         </div>
 
         {/* Bar chart */}
