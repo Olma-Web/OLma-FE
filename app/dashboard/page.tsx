@@ -866,7 +866,7 @@ export default function MarketDashboard() {
           <StatCard
             label="시장 중앙 단가"
             value={benchmark?.median != null ? `${benchmark.median}만원` : "-"}
-            caption="유사 조건 · 월 환산 기준"
+            caption={latestSubmission?.amountUnit === "TOTAL" ? "유사 조건 · 월 환산 기준" : "유사 조건 · 월 단위 기준"}
           />
           <StatCard
             label="데이터 신뢰도"
