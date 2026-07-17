@@ -464,8 +464,8 @@ function BarChart({
 
   const isMonthly = amountUnit === "MONTHLY";
   const isTrackB = submissionType === "TRACK_B";
-  const chartTitle = isMonthly ? "단가 분포 그래프 (월 단위 계약)" : "단가 분포 그래프 (건별 외주 계약)";
-  const unitLabel = isMonthly ? "월 단가 (만원)" : "단가 (만원)";
+  const chartTitle = isMonthly ? "단가 분포 그래프" : "단가 분포 그래프";
+  const unitLabel = isMonthly ? "월 단가 (만원)" : " 월 환산 단가 (만원)";
   const userLegendLabel = isTrackB ? "내 희망 단가" : "내 단가";
 
   return (
@@ -506,7 +506,7 @@ function BarChart({
             className="text-xs text-gray-400"
             style={{ writingMode: "vertical-rl" }}
           >
-            디자이너 수(명)
+            디자이너 수 (명)
           </p>
         </div>
 
@@ -866,7 +866,7 @@ export default function MarketDashboard() {
           <StatCard
             label="시장 중앙 단가"
             value={benchmark?.median != null ? `${benchmark.median}만원` : "-"}
-            caption="유사 조건 기준"
+            caption="유사 조건 · 월 환산 기준"
           />
           <StatCard
             label="데이터 신뢰도"
@@ -876,7 +876,7 @@ export default function MarketDashboard() {
           <StatCard
             label="내 위치"
             value={userPosition}
-            caption={latestSubmission?.amountUnit === "TOTAL" ? "총액을 기간 기준으로 환산" : "입력 월 단가 기준"}
+            caption={latestSubmission?.amountUnit === "TOTAL" ? "총액을 월 단위 기준으로 환산" : "입력 월 단가 기준"}
           />
         </div>
 

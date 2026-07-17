@@ -63,7 +63,7 @@ export default function Topbar() {
   return (
     <header className="relative flex min-h-14 items-center bg-charcoal px-4 py-3 md:min-h-16 md:px-8">
       {toast && (
-        <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-xl bg-gray-900 px-5 py-3 text-sm text-white shadow-lg">
+        <div className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-gray-900 px-5 py-3 text-sm text-white shadow-lg">
           로그인 후 이용할 수 있어요
         </div>
       )}
