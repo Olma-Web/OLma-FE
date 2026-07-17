@@ -7,9 +7,16 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { getSteps } from "@/lib/onboarding/steps";
 import { jobCategoryMap, experienceLevelMap, workFormatMap, durationMap, certificateMap } from "@/lib/onboarding/maps";
-import { submissionAPI, userAPI } from "@/lib/api";
+import { draftAPI, submissionAPI, userAPI } from "@/lib/api";
 import Topbar from "@/components/topbar";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+
+type OnboardingDraftState = {
+  mode: "onboarding";
+  currentStep: number;
+  answers: Record<number, string | string[]>;
+  returnTo: string | null;
+};
 
 function OnboardingContent() {
   const searchParams = useSearchParams();
@@ -20,6 +27,8 @@ function OnboardingContent() {
   const [answers, setAnswers] = useState<Record<number, string | string[]>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [specUpdateAnswers, setSpecUpdateAnswers] = useState<Record<number, string | string[]>>({});
+  const [restoredReturnTo, setRestoredReturnTo] = useState<string | null>(null);
+  const [onboardingDraftRestored, setOnboardingDraftRestored] = useState(isSpecUpdate);
 
   // 스펙 업데이트 진행 상태 복원 (페이지 새로고침 후에도 유지)
   useEffect(() => {
@@ -42,10 +51,42 @@ function OnboardingContent() {
     }
   }, [specUpdateAnswers, isSpecUpdate]);
 
+  useEffect(() => {
+    if (isSpecUpdate) {
+      setOnboardingDraftRestored(true);
+      return;
+    }
+
+    let cancelled = false;
+    const restoreOnboardingDraft = async () => {
+      try {
+        const draft = await draftAPI.get<Partial<OnboardingDraftState>>("ONBOARDING");
+        if (cancelled) return;
+        const state = draft?.state;
+        if (draft?.status === "IN_PROGRESS" && state?.mode === "onboarding" && state.answers) {
+          const restoredSteps = getSteps(state.answers[1] as string, state.answers[6] as string);
+          setAnswers(state.answers as Record<number, string | string[]>);
+          setCurrentStep(Math.min(state.currentStep ?? 0, Math.max(restoredSteps.length - 1, 0)));
+          setRestoredReturnTo(state.returnTo ?? null);
+        }
+      } catch {
+        // 저장된 온보딩 draft가 없거나 조회할 수 없으면 새 온보딩으로 시작한다.
+      } finally {
+        if (!cancelled) setOnboardingDraftRestored(true);
+      }
+    };
+
+    restoreOnboardingDraft();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSpecUpdate]);
+
   const allSteps = getSteps(answers[1] as string, answers[6] as string);
   const steps = isSpecUpdate ? allSteps.filter((s) => [2, 3, 4].includes(s.id)) : allSteps;
   const totalSteps = steps.length;
   const step = steps[currentStep];
+  const effectiveReturnTo = returnTo ?? restoredReturnTo;
 
   const workingAnswers = isSpecUpdate ? specUpdateAnswers : answers;
   const progressDenominator = isSpecUpdate ? 3 : (answers[1] && !answers[6]
@@ -53,6 +94,16 @@ function OnboardingContent() {
     : totalSteps);
   const progress = Math.round(((currentStep + 1) / progressDenominator) * 100);
   const isLastStep = currentStep === totalSteps - 1;
+
+  useEffect(() => {
+    if (isSpecUpdate || !onboardingDraftRestored || Object.keys(answers).length === 0) return;
+    draftAPI.save<OnboardingDraftState>("ONBOARDING", {
+      mode: "onboarding",
+      currentStep,
+      answers,
+      returnTo: effectiveReturnTo,
+    }).catch(() => {});
+  }, [answers, currentStep, effectiveReturnTo, isSpecUpdate, onboardingDraftRestored]);
 
   const isSelected = (option: string) =>
     step.type === "multi"
@@ -165,7 +216,7 @@ function OnboardingContent() {
           body.duration = durationMap[durationAnswer];
         }
 
-        const result = await submissionAPI.submit(body);
+        await submissionAPI.submit(body);
 
         // submission 후 user profile에 jobCategory/experienceLevel 저장
         if (userId) {
@@ -181,7 +232,8 @@ function OnboardingContent() {
           });
         }
 
-        window.location.href = returnTo === "estimate" ? "/estimate" : "/dashboard";
+        draftAPI.delete("ONBOARDING").catch(() => {});
+        window.location.href = effectiveReturnTo === "estimate" ? "/estimate" : "/dashboard";
       }
     } catch (err) {
       alert(err instanceof Error ? err.message : "서버에 연결할 수 없어요");

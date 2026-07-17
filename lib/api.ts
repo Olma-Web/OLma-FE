@@ -22,7 +22,8 @@ export class ApiError extends Error {
 }
 
 async function fetchAPI(endpoint: string, options?: RequestInit) {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const isBrowser = typeof window !== "undefined";
+  const token = isBrowser ? localStorage.getItem("token") : null;
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
@@ -35,7 +36,10 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
   });
 
   if (!res.ok) {
-    if (res.status === 401) {
+    if (res.status === 401 && endpoint !== "/v1/auth/login") {
+      if (!isBrowser) {
+        throw new ApiError("세션이 만료되었습니다.", 401);
+      }
       localStorage.removeItem("token");
       localStorage.removeItem("userId");
       window.location.href = "/login";

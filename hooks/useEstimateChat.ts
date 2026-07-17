@@ -253,7 +253,7 @@ export function useEstimateChat() {
 
   // 협상 시뮬레이터를 진행하다 만 견적서가 있으면(analyze만 하고 저장은 안 한 상태),
   // 새로고침해도 백엔드에 기록해둔 진행 상태(negotiationSimulationState)를 그대로 불러와
-  // 목록 선택 없이 바로 이어서 보여준다 — 일반 목록/draft 복원보다 우선한다.
+  // 목록 선택 없이 바로 이어서 보여준다.
   //
   // 취소 API가 없어서 한 번이라도 "있어요/없어요"를 눌렀던 견적서는 계속 IN_PROGRESS로
   // 남는다. 그래서 마지막으로 답한 지 오래된(RESUME_STALE_MS 이상) 견적서는 자동으로
@@ -266,7 +266,8 @@ export function useEstimateChat() {
       const updatedAt = detail.negotiationSimulationUpdatedAt
         ? new Date(detail.negotiationSimulationUpdatedAt).getTime()
         : 0;
-      if (!updatedAt || Date.now() - updatedAt > RESUME_STALE_MS) {
+      const state = detail.negotiationSimulationState;
+      if (!updatedAt || Date.now() - updatedAt > RESUME_STALE_MS || state?.declined) {
         return false;
       }
       setSelectedPreviousEstimate(inProgress);
@@ -276,13 +277,10 @@ export function useEstimateChat() {
       // "아직 없어요"를 눌렀으면 { declined: true }, start만 하고 아무 답도 안 남겼으면
       // 빈 객체({})로 내려올 수 있다 — negotiationSimulationStatus만 보고 무조건
       // "있어요"로 되돌리면 안 되고, 이 state를 우선해서 실제로 무엇을 남겼는지 확인해야 한다.
-      const state = detail.negotiationSimulationState;
       if (state && Array.isArray(state.options)) {
         setNegotiationResult(state as EstimateNegotiationResult);
         setLoadedEstimateTargetBudget(String(toMan(state.targetBudgetAmount ?? 0)));
         setLoadedEstimateBudgetAnswer("yes");
-      } else if (state?.declined) {
-        setLoadedEstimateBudgetAnswer("no");
       } else if (detail.negotiationSimulationStatus === "IN_PROGRESS") {
         // "있어요"를 눌렀던 시점(=IN_PROGRESS로 표시된 시점)부터는 분석 전이라도
         // 예산 입력 단계로 바로 돌아가야 처음 질문부터 다시 답할 필요가 없다.
@@ -299,10 +297,11 @@ export function useEstimateChat() {
 
   useEffect(() => {
     refreshPreviousEstimates().then(async (notSimulated) => {
-      if (await resumeInProgressNegotiation(notSimulated)) return;
       // 답변을 이미 시작한 draft가 있다면(=예전에 "새로 계산하기"를 골라 진행 중이던 것)
-      // 인사말 없이 바로 그 자리로 돌아간다. 그렇지 않을 때만 인사말을 보여준다.
+      // 이전 견적서의 IN_PROGRESS 기록보다 우선해 바로 그 자리로 돌아간다.
       if (await restoreDraft()) return;
+      if (await resumeInProgressNegotiation(notSimulated)) return;
+      // 진행 중인 새 계산 draft나 실제 협상 분석 상태가 없을 때만 인사말을 보여준다.
       if (notSimulated.length > 0) {
         setShowReturningGreeting(true);
       }
