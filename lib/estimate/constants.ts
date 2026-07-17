@@ -23,48 +23,6 @@ export const DELIVERABLE_OPTIONS = [
   { label: "Figma 등 원본 소스 전송", bonus: 0.2 },
 ] as const;
 
-export type EstimateNegotiationOption = {
-  type: string;
-  title: string;
-  adjustedAmount: number;
-  savingAmount: number;
-  gapAfterAdjustment: number;
-  adjustedScreenCount: number;
-  uxEngagement: string;
-  addons: string[];
-  adjustments: string[];
-  clientMessage: string;
-};
-
-export type EstimateNegotiationResult = {
-  status: "NO_DISCOUNT_NEEDED" | "ADJUSTMENT_REQUIRED" | string;
-  currentAmount: number;
-  targetBudgetAmount: number;
-  gapAmount: number;
-  recommendedOptionType?: string | null;
-  options: EstimateNegotiationOption[];
-  clientMessage: string;
-};
-
-export type EstimateResult = {
-  jobCategoryName: string;
-  experienceLevelLabel: string;
-  baseRatePerScreen: number;
-  screenCount: number;
-  step1BasicFee: number;
-  uxMultiplier: number;
-  workScopeLabel: string;
-  step2UxFee: number;
-  platformMultiplier: number;
-  platformLabel: string;
-  step3PlatformFee: number;
-  addonPercent: number;
-  step4AddonFee: number;
-  addons: string[];
-  finalAmount: number;
-  negotiationResult?: EstimateNegotiationResult | null;
-};
-
 export type WorkScopeLabel   = typeof WORK_SCOPE_OPTIONS[number]["label"];
 export type PlatformLabel    = typeof PLATFORM_OPTIONS[number]["label"];
 export type DeliverableLabel = typeof DELIVERABLE_OPTIONS[number]["label"];
@@ -114,30 +72,3 @@ export const QUESTION_TEXT: Record<StepId, string> = {
 };
 
 export const TYPING_DELAY = 650;
-
-export interface PreviousEstimateItem {
-  id: number;
-  projectName?: string;
-  createdAt: string;
-  finalAmount: number;
-  screenCount: number;
-  negotiationSimulationStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
-  negotiationResult?: unknown;
-}
-
-export interface SavedEstimateDetail {
-  id: number;
-  experienceLevelId: number;
-  experienceLevelLabel: string;
-  jobCategoryId: number;
-  jobCategoryName: string;
-  baseAmount: number;
-  screenCount: number;
-  uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";
-  uxMultiplier: number;
-  platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
-  platformMultiplier: number;
-  addons: string[];
-  addonPercent: number;
-  finalAmount: number;
-}

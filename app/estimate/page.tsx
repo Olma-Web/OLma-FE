@@ -1,15 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { Check, RefreshCw, Search, User } from "lucide-react";
 import Topbar from "@/components/topbar";
 import EstimateModal from "@/components/estimate/EstimateModal";
 import NegotiationModal from "@/components/estimate/NegotiationModal";
-import EstimateGateModal from "@/components/estimate/EstimateGateModal";
 import { AiAvatar, QuestionBubble, TypingBubble, AnswerPill } from "@/components/estimate/ChatPrimitives";
-import { estimateAPI, userAPI } from "@/lib/api";
-import { toMan, formatEstimateDate, buildEstimateResultFromDetail } from "@/lib/estimate/utils";
+import { toMan } from "@/lib/estimate/utils";
 import {
   BASE_RATE_TABLE,
   WORK_SCOPE_OPTIONS,
@@ -17,360 +13,59 @@ import {
   DELIVERABLE_OPTIONS,
   JOB_CATEGORY_OPTIONS,
   EXPERIENCE_LEVEL_OPTIONS,
-  UX_ENGAGEMENT_MAP,
-  PLATFORM_ENV_MAP,
-  ADDON_MAP,
   STEP_ORDER,
   QUESTION_TEXT,
-  TYPING_DELAY,
   type StepId,
-  type WorkScopeLabel,
-  type PlatformLabel,
-  type DeliverableLabel,
-  type EstimateResult,
-  type EstimateNegotiationResult,
-  type PreviousEstimateItem,
-  type SavedEstimateDetail,
 } from "@/lib/estimate/constants";
-
-const ESTIMATE_PROGRESS_KEY = "olma_estimate_progress";
+import { useEstimateChat } from "@/hooks/useEstimateChat";
 
 export default function EstimatePage() {
-  const router = useRouter();
-  const [jobCategoryId,     setJobCategoryId]     = useState<number | null>(null);
-  const [experienceLevelId, setExperienceLevelId] = useState<number | null>(null);
-  const [screens,           setScreens]           = useState("");
-  const [workScope,         setWorkScope]         = useState<WorkScopeLabel | "">("");
-  const [platform,          setPlatform]          = useState<PlatformLabel | "">("");
-  const [deliverables,      setDeliverables]      = useState<DeliverableLabel[]>([]);
-  const [showModal,         setShowModal]         = useState(false);
-  const [result,            setResult]            = useState<EstimateResult | null>(null);
-  const [nickname,          setNickname]          = useState("");
-  const [hasSubmissions,    setHasSubmissions]    = useState<boolean | null>(null);
-  const [hasClientBudget,   setHasClientBudget]   = useState<"yes" | "no" | null>(null);
-  const [targetBudget,      setTargetBudget]      = useState("");
-  const [negotiationStatus, setNegotiationStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [negotiationResult, setNegotiationResult] = useState<EstimateNegotiationResult | null>(null);
-  const [negotiationModalOpen, setNegotiationModalOpen] = useState(false);
-  const [previousEstimates, setPreviousEstimates]       = useState<PreviousEstimateItem[]>([]);
-  const [showReturningGreeting, setShowReturningGreeting] = useState(false);
-  const [showPreviousEstimatesPicker, setShowPreviousEstimatesPicker] = useState(false);
-  const [selectedPreviousEstimate, setSelectedPreviousEstimate] = useState<PreviousEstimateItem | null>(null);
-  const [selectedEstimateDetail, setSelectedEstimateDetail] = useState<SavedEstimateDetail | null>(null);
-  const [loadedEstimateBudgetAnswer, setLoadedEstimateBudgetAnswer] = useState<"yes" | "no" | null>(null);
-  const [loadedEstimateTargetBudget, setLoadedEstimateTargetBudget] = useState("");
-  const [loadedNegotiationSaved, setLoadedNegotiationSaved] = useState(false);
-  // 저장 버튼은 모달 내부 로컬 state라 모달을 다시 열면 초기화된다 — 같은 견적을 중복
-  // 저장하지 않도록 "이미 저장했는지"는 부모(page)가 기억하고 있다가 저장 버튼 자체를 숨긴다.
-  const [estimateSaved,    setEstimateSaved]    = useState(false);
-  const [negotiationSaved, setNegotiationSaved] = useState(false);
-
-  // 답변이 확정된 질문 수. 답변 즉시(동기적으로) 증가해 방금 답한 말풍선이 유지되도록 하고,
-  // 다음 질문의 노출만 isTyping 딜레이로 늦춘다.
-  const [answeredCount, setAnsweredCount] = useState(0);
-  const [isTyping,      setIsTyping]      = useState(false);
-
-  const bottomRef   = useRef<HTMLDivElement>(null);
-  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // 온보딩 게이트를 타고 나갔다 돌아왔을 때, 그리고 새로고침/재방문 시에도 답변을 이어서
-  // 보여주기 위한 임시 저장. 서버에는 아무 영향 없는 순수 클라이언트 상태 복원이다.
-  const restoredDraftRef = useRef(false);
-  useEffect(() => {
-    const draftRaw = sessionStorage.getItem("olma_estimate_draft");
-    if (draftRaw) {
-      sessionStorage.removeItem("olma_estimate_draft");
-      localStorage.removeItem(ESTIMATE_PROGRESS_KEY);
-      try {
-        const draft = JSON.parse(draftRaw);
-        setJobCategoryId(draft.jobCategoryId);
-        setExperienceLevelId(draft.experienceLevelId);
-        setScreens(draft.screens);
-        setWorkScope(draft.workScope);
-        setPlatform(draft.platform);
-        setDeliverables(draft.deliverables);
-        setAnsweredCount(draft.answeredCount);
-        restoredDraftRef.current = true;
-      } catch {
-        // 손상된 저장값은 무시한다.
-      }
-      return;
-    }
-
-    const progressRaw = localStorage.getItem(ESTIMATE_PROGRESS_KEY);
-    if (!progressRaw) return;
-    try {
-      const progress = JSON.parse(progressRaw);
-      setJobCategoryId(progress.jobCategoryId);
-      setExperienceLevelId(progress.experienceLevelId);
-      setScreens(progress.screens);
-      setWorkScope(progress.workScope);
-      setPlatform(progress.platform);
-      setDeliverables(progress.deliverables);
-      setAnsweredCount(progress.answeredCount);
-      setResult(progress.result);
-      setHasClientBudget(progress.hasClientBudget);
-      setTargetBudget(progress.targetBudget);
-      setNegotiationResult(progress.negotiationResult);
-      setEstimateSaved(!!progress.estimateSaved);
-      setNegotiationSaved(!!progress.negotiationSaved);
-
-      // "이전 견적서 불러오기" 플로우 중이었다면 그 진행 상태도 함께 복원한다.
-      if (progress.selectedEstimateDetail) {
-        setSelectedPreviousEstimate(progress.selectedPreviousEstimate ?? null);
-        setSelectedEstimateDetail(progress.selectedEstimateDetail);
-        setLoadedEstimateBudgetAnswer(progress.loadedEstimateBudgetAnswer ?? null);
-        setLoadedEstimateTargetBudget(progress.loadedEstimateTargetBudget ?? "");
-        setLoadedNegotiationSaved(!!progress.loadedNegotiationSaved);
-        setShowReturningGreeting(true);
-        setShowPreviousEstimatesPicker(true);
-      }
-
-      restoredDraftRef.current = true;
-    } catch {
-      localStorage.removeItem(ESTIMATE_PROGRESS_KEY);
-    }
-  }, []);
-
-  // 진행 중인 답변을 매 변경마다 저장해, 새로고침하거나 다시 들어와도 이어서 진행할 수 있게 한다.
-  // estimateSaved/negotiationSaved도 함께 저장해, 새로고침 후 저장 버튼을 다시 눌러 중복
-  // 저장하는 일이 없도록 한다. "이전 견적서 불러오기" 플로우(selectedEstimateDetail)도 동일하게
-  // 저장해, 새로고침해도 불러온 견적서와 협상 진행 상태가 유지되게 한다.
-  useEffect(() => {
-    const hasProgress = answeredCount > 0 || !!result || !!selectedEstimateDetail;
-    if (!hasProgress) {
-      localStorage.removeItem(ESTIMATE_PROGRESS_KEY);
-      return;
-    }
-    localStorage.setItem(ESTIMATE_PROGRESS_KEY, JSON.stringify({
-      jobCategoryId, experienceLevelId, screens, workScope, platform, deliverables,
-      answeredCount, result, hasClientBudget, targetBudget, negotiationResult,
-      estimateSaved, negotiationSaved,
-      selectedPreviousEstimate, selectedEstimateDetail,
-      loadedEstimateBudgetAnswer, loadedEstimateTargetBudget, loadedNegotiationSaved,
-    }));
-  }, [
-    jobCategoryId, experienceLevelId, screens, workScope, platform, deliverables,
-    answeredCount, result, hasClientBudget, targetBudget, negotiationResult,
-    estimateSaved, negotiationSaved,
-    selectedPreviousEstimate, selectedEstimateDetail,
-    loadedEstimateBudgetAnswer, loadedEstimateTargetBudget, loadedNegotiationSaved,
-  ]);
-
-  useEffect(() => {
-    const userId = Number(localStorage.getItem("userId"));
-    if (!userId) return;
-    userAPI.getProfile(userId).then((data) => {
-      if (data?.nickname) setNickname(data.nickname);
-    }).catch(() => {});
-    userAPI.getSubmissions(userId).then((data) => {
-      setHasSubmissions(Array.isArray(data) && data.length > 0);
-    }).catch(() => {});
-    estimateAPI.getList().then((data) => {
-      if (!Array.isArray(data)) return;
-      // 방금 답변을 복원한 세션이면 되돌아온 사용자 인사말을 띄우지 않는다.
-      if (restoredDraftRef.current) return;
-      // 협상 시뮬레이터를 이미 거친 견적서는 다시 불러올 필요가 없으므로 목록에서 제외한다.
-      // negotiationSimulationStatus는 start/progress/complete 엔드포인트로만 갱신되는데 우리는 아직
-      // 그 엔드포인트를 쓰지 않으므로, negotiationResult가 이미 있는지도 함께 확인한다.
-      const notSimulated = data.filter(
-        (est: PreviousEstimateItem) =>
-          est.negotiationSimulationStatus !== "COMPLETED" && !est.negotiationResult,
-      );
-      if (notSimulated.length > 0) {
-        setPreviousEstimates(notSimulated);
-        setShowReturningGreeting(true);
-      }
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [
-    answeredCount, isTyping, hasClientBudget, result, negotiationResult, negotiationModalOpen,
-    showReturningGreeting, showPreviousEstimatesPicker, selectedPreviousEstimate, loadedEstimateBudgetAnswer,
-  ]);
-
-  useEffect(() => {
-    return () => {
-      if (typingTimer.current) clearTimeout(typingTimer.current);
-    };
-  }, []);
-
-  const recalcAndShow = () => {
-    if (!jobCategoryId || !experienceLevelId) return;
-
-    const baseRate    = BASE_RATE_TABLE[jobCategoryId]?.[experienceLevelId] ?? 0;
-    const screenCount = Number(screens);
-
-    const step1BasicFee = screenCount * baseRate;
-
-    const uxOption     = WORK_SCOPE_OPTIONS.find((o) => o.label === workScope);
-    const uxMultiplier = uxOption?.multiplier ?? 1.0;
-    const step2UxFee   = step1BasicFee * uxMultiplier;
-
-    const platformOption     = PLATFORM_OPTIONS.find((o) => o.label === platform);
-    const platformMultiplier = platformOption?.multiplier ?? 1.0;
-    const step3PlatformFee   = step2UxFee * platformMultiplier;
-
-    const addonRatioSum = deliverables.reduce((sum, d) => {
-      const opt = DELIVERABLE_OPTIONS.find((o) => o.label === d);
-      return sum + (opt?.bonus ?? 0);
-    }, 0);
-    const addonPercent  = Math.round(addonRatioSum * 100);
-    const step4AddonFee = Math.round(step3PlatformFee * addonRatioSum);
-    const finalAmount   = step3PlatformFee + step4AddonFee;
-
-    const jobLabel   = JOB_CATEGORY_OPTIONS.find((o) => o.id === jobCategoryId)?.label ?? "";
-    const levelLabel = EXPERIENCE_LEVEL_OPTIONS.find((o) => o.id === experienceLevelId)?.label ?? "";
-
-    setResult({
-      jobCategoryName:      jobLabel,
-      experienceLevelLabel: levelLabel,
-      baseRatePerScreen:    baseRate,
-      screenCount,
-      step1BasicFee,
-      uxMultiplier,
-      workScopeLabel:       workScope as string,
-      step2UxFee,
-      platformMultiplier,
-      platformLabel:        platform as string,
-      step3PlatformFee,
-      addonPercent,
-      step4AddonFee,
-      addons:               deliverables,
-      finalAmount,
-    });
-  };
-
-  useEffect(() => {
-    if (answeredCount === STEP_ORDER.length) {
-      recalcAndShow();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answeredCount]);
-
-  const toggleDeliverable = (label: DeliverableLabel) => {
-    setDeliverables((prev) =>
-      prev.includes(label) ? prev.filter((d) => d !== label) : [...prev, label],
-    );
-  };
-
-  const advanceStep = (stepId: StepId) => {
-    const stepIndex = STEP_ORDER.indexOf(stepId);
-    setAnsweredCount(stepIndex + 1);
-
-    // 마지막 질문은 다음 질문이 없으므로 타이핑 딜레이 없이 바로 결과를 계산한다.
-    if (stepIndex === STEP_ORDER.length - 1) return;
-
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    setIsTyping(true);
-    typingTimer.current = setTimeout(() => {
-      setIsTyping(false);
-    }, TYPING_DELAY);
-  };
-
-  const STEP_RESETTERS: Record<StepId, () => void> = {
-    job:          () => setJobCategoryId(null),
-    level:        () => setExperienceLevelId(null),
-    screens:      () => setScreens(""),
-    workScope:    () => setWorkScope(""),
-    platform:     () => setPlatform(""),
-    deliverables: () => setDeliverables([]),
-  };
-
-  // 답변 수정 버튼을 누르면 해당 질문부터 이후 답변을 모두 지우고 그 질문부터 다시 진행한다.
-  const restartFromStep = (stepId: StepId) => {
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    const stepIndex = STEP_ORDER.indexOf(stepId);
-    STEP_ORDER.slice(stepIndex).forEach((id) => STEP_RESETTERS[id]());
-    setAnsweredCount(stepIndex);
-    setIsTyping(false);
-    setResult(null);
-    setShowModal(false);
-    setHasClientBudget(null);
-    setTargetBudget("");
-    setNegotiationStatus("idle");
-    setNegotiationResult(null);
-    setNegotiationModalOpen(false);
-    setEstimateSaved(false);
-    setNegotiationSaved(false);
-  };
-
-  const handleNegotiationSubmit = async () => {
-    const inputMan = Number(targetBudget);
-    if (!inputMan || inputMan <= 0 || negotiationStatus === "loading") return;
-    // workScope/platform은 답변 수정(restartFromStep)으로 언제든 다시 빈 값이 될 수 있어 매핑 전에 반드시 확인한다.
-    if (!experienceLevelId || !jobCategoryId || !workScope || !platform) return;
-    setNegotiationStatus("loading");
-    try {
-      const data = await estimateAPI.simulateNegotiation({
-        experienceLevelId,
-        jobCategoryId,
-        screenCount: Number(screens),
-        uxEngagement: UX_ENGAGEMENT_MAP[workScope],
-        platformEnvironment: PLATFORM_ENV_MAP[platform],
-        addons: deliverables.map((d) => ADDON_MAP[d]).filter(Boolean),
-        targetBudgetAmount: inputMan * 10000,
-      });
-      setNegotiationResult(data);
-      setNegotiationStatus("idle");
-    } catch {
-      setNegotiationStatus("error");
-    }
-  };
-
-  const handleLoadedEstimateAnalyze = async () => {
-    const inputMan = Number(loadedEstimateTargetBudget);
-    if (!inputMan || inputMan <= 0 || negotiationStatus === "loading") return;
-    if (!selectedEstimateDetail) return;
-    setNegotiationStatus("loading");
-    try {
-      const data = await estimateAPI.simulateNegotiation({
-        experienceLevelId: selectedEstimateDetail.experienceLevelId,
-        jobCategoryId: selectedEstimateDetail.jobCategoryId,
-        screenCount: selectedEstimateDetail.screenCount,
-        uxEngagement: selectedEstimateDetail.uxEngagement,
-        platformEnvironment: selectedEstimateDetail.platformEnvironment,
-        addons: selectedEstimateDetail.addons as ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[],
-        targetBudgetAmount: inputMan * 10000,
-      });
-      // "저장하기"를 눌러야만 기존 견적서(id)에 반영한다 — complete는 한 번 저장되면
-      // 덮어쓰기가 안 되므로, 분석 단계에서 미리 저장하면 재분석 시 화면과 저장 내용이 어긋난다.
-      setNegotiationResult(data);
-      setNegotiationStatus("idle");
-    } catch {
-      setNegotiationStatus("error");
-    }
-  };
-
-  const handleReset = () => {
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    setJobCategoryId(null);
-    setExperienceLevelId(null);
-    setScreens("");
-    setWorkScope("");
-    setPlatform("");
-    setDeliverables([]);
-    setAnsweredCount(0);
-    setIsTyping(false);
-    setShowModal(false);
-    setResult(null);
-    setTargetBudget("");
-    setNegotiationStatus("idle");
-    setNegotiationResult(null);
-    setNegotiationModalOpen(false);
-    setHasClientBudget(null);
-    setShowReturningGreeting(false);
-    setShowPreviousEstimatesPicker(false);
-    setSelectedPreviousEstimate(null);
-    setSelectedEstimateDetail(null);
-    setLoadedEstimateBudgetAnswer(null);
-    setLoadedEstimateTargetBudget("");
-    setLoadedNegotiationSaved(false);
-    setEstimateSaved(false);
-    setNegotiationSaved(false);
-  };
+  const {
+    jobCategoryId,     setJobCategoryId,
+    experienceLevelId, setExperienceLevelId,
+    screens,           setScreens,
+    workScope,         setWorkScope,
+    platform,          setPlatform,
+    deliverables,
+    showModal,         setShowModal,
+    result,
+    estimateSaved,
+    answeredCount,
+    isTyping,
+    isCalculating,
+    calcError,
+    bottomRef,
+    hasClientBudget,     setHasClientBudget,
+    targetBudget,        setTargetBudget,
+    negotiationStatus,
+    negotiationResult,
+    negotiationModalOpen, setNegotiationModalOpen,
+    negotiationSaved,
+    previousEstimates,
+    showReturningGreeting,
+    showPreviousEstimatesPicker, setShowPreviousEstimatesPicker,
+    selectedPreviousEstimate,
+    selectedEstimateDetail,
+    loadedEstimateBudgetAnswer,
+    loadedEstimateTargetBudget, setLoadedEstimateTargetBudget,
+    loadedNegotiationSaved,
+    toggleDeliverable,
+    advanceStep,
+    restartFromStep,
+    handleReset,
+    answerText,
+    handleSave,
+    handleNegotiationSubmit,
+    handleSaveWithNegotiation,
+    resetNegotiation,
+    resetLoadedEstimateSelection,
+    resetLoadedEstimateBudgetAnswer,
+    chooseLoadedEstimateBudget,
+    startFreshCalculation,
+    pickPreviousEstimate,
+    openPreviousEstimateModal,
+    handleLoadedEstimateAnalyze,
+  } = useEstimateChat();
 
   const formatMultiplier = (multiplier: number) =>
     multiplier % 1 === 0 ? String(multiplier) : multiplier.toFixed(1);
@@ -382,23 +77,6 @@ export default function EstimatePage() {
         : "bg-white border-line1 text-titlefont2 hover:border-main75"
     }`;
 
-  const answerText = (stepId: StepId): string => {
-    switch (stepId) {
-      case "job":
-        return JOB_CATEGORY_OPTIONS.find((o) => o.id === jobCategoryId)?.label ?? "";
-      case "level":
-        return EXPERIENCE_LEVEL_OPTIONS.find((o) => o.id === experienceLevelId)?.label ?? "";
-      case "screens":
-        return `${screens}장`;
-      case "workScope":
-        return workScope;
-      case "platform":
-        return platform;
-      case "deliverables":
-        return deliverables.length ? deliverables.join(", ") : "선택 안 함";
-    }
-  };
-
   const renderActiveControl = (stepId: StepId) => {
     switch (stepId) {
       case "job":
@@ -407,10 +85,7 @@ export default function EstimatePage() {
             {JOB_CATEGORY_OPTIONS.map((option) => (
               <button
                 key={option.id}
-                onClick={() => {
-                  setJobCategoryId(option.id);
-                  advanceStep("job");
-                }}
+                onClick={() => { setJobCategoryId(option.id); advanceStep("job"); }}
                 className={`flex-1 py-3 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
                   jobCategoryId === option.id
                     ? "bg-main25 border-main100 text-main100"
@@ -429,10 +104,7 @@ export default function EstimatePage() {
             {EXPERIENCE_LEVEL_OPTIONS.map((option) => (
               <button
                 key={option.id}
-                onClick={() => {
-                  setExperienceLevelId(option.id);
-                  advanceStep("level");
-                }}
+                onClick={() => { setExperienceLevelId(option.id); advanceStep("level"); }}
                 className={optionButtonClass(experienceLevelId === option.id)}
               >
                 <span>{option.label}</span>
@@ -449,14 +121,11 @@ export default function EstimatePage() {
       case "screens": {
         const screenCount = Number(screens) || 0;
         const canConfirm  = screenCount > 0;
-        const decrement   = () => setScreens(String(Math.max(1, screenCount - 1)));
-        const increment   = () => setScreens(String(screenCount + 1));
-
         return (
           <div className="flex w-full max-w-md items-center gap-2">
             <button
               type="button"
-              onClick={decrement}
+              onClick={() => setScreens(String(Math.max(1, screenCount - 1)))}
               disabled={screenCount <= 1}
               aria-label="화면 수 감소"
               className="h-[46px] w-[46px] shrink-0 rounded-lg border border-line1 text-lg font-semibold text-titlefont2 transition hover:border-main75 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
@@ -469,15 +138,13 @@ export default function EstimatePage() {
               autoFocus
               value={screens}
               onChange={(e) => setScreens(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && canConfirm) advanceStep("screens");
-              }}
+              onKeyDown={(e) => { if (e.key === "Enter" && canConfirm) advanceStep("screens"); }}
               placeholder="화면 수를 입력해주세요"
               className="min-w-0 flex-1 rounded-lg border border-line1 bg-bg2 px-5 py-3 text-center text-sm text-titlefont2 placeholder:text-bodyfont4 focus:outline-none focus:ring-2 focus:border-main75 focus:ring-main25 transition-all"
             />
             <button
               type="button"
-              onClick={increment}
+              onClick={() => setScreens(String(screenCount + 1))}
               aria-label="화면 수 증가"
               className="h-[46px] w-[46px] shrink-0 rounded-lg border border-line1 text-lg font-semibold text-titlefont2 transition hover:border-main75 cursor-pointer"
             >
@@ -501,10 +168,7 @@ export default function EstimatePage() {
             {WORK_SCOPE_OPTIONS.map((option) => (
               <button
                 key={option.label}
-                onClick={() => {
-                  setWorkScope(option.label);
-                  advanceStep("workScope");
-                }}
+                onClick={() => { setWorkScope(option.label); advanceStep("workScope"); }}
                 className={optionButtonClass(workScope === option.label)}
               >
                 <span>{option.label}</span>
@@ -520,10 +184,7 @@ export default function EstimatePage() {
             {PLATFORM_OPTIONS.map((option) => (
               <button
                 key={option.label}
-                onClick={() => {
-                  setPlatform(option.label);
-                  advanceStep("platform");
-                }}
+                onClick={() => { setPlatform(option.label); advanceStep("platform"); }}
                 className={optionButtonClass(platform === option.label)}
               >
                 <span>{option.label}</span>
@@ -607,7 +268,7 @@ export default function EstimatePage() {
                         이전 견적서 불러오기
                       </button>
                       <button
-                        onClick={() => setShowReturningGreeting(false)}
+                        onClick={startFreshCalculation}
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line1 bg-white py-3 text-sm font-semibold text-titlefont2 transition hover:border-main75 hover:text-main100 cursor-pointer"
                       >
                         <RefreshCw className="h-4 w-4" strokeWidth={2} />
@@ -622,7 +283,10 @@ export default function EstimatePage() {
             {showReturningGreeting && showPreviousEstimatesPicker && (
               <AnswerPill
                 text="이전 견적서 불러오기"
-                onEdit={() => setShowPreviousEstimatesPicker(false)}
+                onEdit={() => {
+                  setShowPreviousEstimatesPicker(false);
+                  resetLoadedEstimateSelection();
+                }}
                 editDisabled={false}
               />
             )}
@@ -636,17 +300,12 @@ export default function EstimatePage() {
                     {previousEstimates.map((est) => (
                       <button
                         key={est.id}
-                        onClick={() => {
-                          setSelectedPreviousEstimate(est);
-                          estimateAPI.getById(est.id).then(setSelectedEstimateDetail).catch(() => {});
-                        }}
+                        onClick={() => pickPreviousEstimate(est)}
                         className="w-full text-left px-5 py-3 rounded-xl border border-line1 bg-white transition-all cursor-pointer flex justify-between items-center hover:border-main75"
                       >
                         <div className="flex flex-col">
                           <span className="text-sm text-titlefont2">{est.projectName || "이름 없는 견적서"}</span>
-                          <span className="mt-1 text-xs text-bodyfont4">
-                            {est.screenCount}화면 · {formatEstimateDate(est.createdAt)}
-                          </span>
+                          <span className="mt-1 text-xs text-bodyfont4">{est.screenCount}화면</span>
                         </div>
                         <span className="text-base font-semibold text-main100 shrink-0 ml-2">
                           {toMan(est.finalAmount).toLocaleString()}만 원
@@ -657,7 +316,7 @@ export default function EstimatePage() {
                   <button
                     onClick={() => {
                       setShowPreviousEstimatesPicker(false);
-                      setShowReturningGreeting(false);
+                      startFreshCalculation();
                     }}
                     className="flex w-full max-w-[480px] items-center justify-center gap-1.5 text-sm font-semibold text-titlefont1 transition hover:text-main100 cursor-pointer"
                   >
@@ -671,10 +330,7 @@ export default function EstimatePage() {
             {showReturningGreeting && selectedPreviousEstimate && (
               <AnswerPill
                 text={selectedPreviousEstimate.projectName || "이름 없는 견적서"}
-                onEdit={() => {
-                  setSelectedPreviousEstimate(null);
-                  setSelectedEstimateDetail(null);
-                }}
+                onEdit={resetLoadedEstimateSelection}
                 editDisabled={false}
               />
             )}
@@ -687,11 +343,7 @@ export default function EstimatePage() {
                     {`${selectedPreviousEstimate.projectName || "이름 없는 견적서"}을 불러왔어요! 화면 수: ${selectedPreviousEstimate.screenCount}화면, 권장 견적: ${toMan(selectedPreviousEstimate.finalAmount).toLocaleString()}만원\n견적서를 열어보고, 협상 시뮬레이터도 사용할 수 있어요`}
                   </QuestionBubble>
                   <button
-                    onClick={() => {
-                      if (!selectedEstimateDetail) return;
-                      setResult(buildEstimateResultFromDetail(selectedEstimateDetail));
-                      setShowModal(true);
-                    }}
+                    onClick={openPreviousEstimateModal}
                     disabled={!selectedEstimateDetail}
                     className="w-full max-w-[480px] rounded-xl bg-main100 py-3 text-sm font-semibold text-white transition hover:bg-main75 disabled:bg-line1 disabled:text-bodyfont4 cursor-pointer disabled:cursor-not-allowed"
                   >
@@ -711,13 +363,13 @@ export default function EstimatePage() {
                   {loadedEstimateBudgetAnswer === null ? (
                     <div className="flex w-full max-w-md gap-3">
                       <button
-                        onClick={() => setLoadedEstimateBudgetAnswer("yes")}
+                        onClick={() => chooseLoadedEstimateBudget("yes")}
                         className="flex-1 py-3 rounded-xl border border-line1 bg-white text-sm font-medium text-titlefont2 transition-all cursor-pointer hover:border-main75 hover:text-main100"
                       >
                         있어요
                       </button>
                       <button
-                        onClick={() => setLoadedEstimateBudgetAnswer("no")}
+                        onClick={() => chooseLoadedEstimateBudget("no")}
                         className="flex-1 py-3 rounded-xl border border-line1 bg-white text-sm font-medium text-titlefont2 transition-all cursor-pointer hover:border-main75 hover:text-main100"
                       >
                         아직 없어요
@@ -726,11 +378,7 @@ export default function EstimatePage() {
                   ) : (
                     <AnswerPill
                       text={loadedEstimateBudgetAnswer === "yes" ? "있어요" : "아직 없어요"}
-                      onEdit={() => {
-                        setLoadedEstimateBudgetAnswer(null);
-                        setLoadedEstimateTargetBudget("");
-                        setLoadedNegotiationSaved(false);
-                      }}
+                      onEdit={resetLoadedEstimateBudgetAnswer}
                       editDisabled={false}
                     />
                   )}
@@ -752,9 +400,7 @@ export default function EstimatePage() {
                       autoFocus
                       value={loadedEstimateTargetBudget}
                       onChange={(e) => setLoadedEstimateTargetBudget(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleLoadedEstimateAnalyze();
-                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleLoadedEstimateAnalyze(); }}
                       placeholder="예: 300"
                       className="min-w-0 flex-1 rounded-lg border border-line1 bg-bg2 px-5 py-3 text-sm text-titlefont2 placeholder:text-bodyfont4 focus:outline-none focus:ring-2 focus:border-main75 focus:ring-main25 transition-all"
                     />
@@ -778,11 +424,7 @@ export default function EstimatePage() {
               <>
                 <AnswerPill
                   text={`${loadedEstimateTargetBudget}만 원`}
-                  onEdit={() => {
-                    setNegotiationResult(null);
-                    setNegotiationStatus("idle");
-                    setNegotiationModalOpen(false);
-                  }}
+                  onEdit={resetNegotiation}
                   // "저장하기"를 눌러 백엔드에 반영된 뒤에는, complete가 덮어쓰기를 지원하지 않으므로 수정을 막는다.
                   editDisabled={loadedNegotiationSaved}
                 />
@@ -803,41 +445,6 @@ export default function EstimatePage() {
               </>
             )}
 
-            {showReturningGreeting && loadedEstimateBudgetAnswer === "yes" && negotiationResult && (
-              <div className="flex items-start gap-3">
-                <AiAvatar />
-                <QuestionBubble fullWidth>
-                  {"클라이언트와의 협상에서 좋은 결과 얻으시길 바라요!💪 가격보다\n작업 범위를 함께 조정하는 조건으로 제안하면 훨씬 설득력 있어요."}
-                </QuestionBubble>
-              </div>
-            )}
-
-            {showReturningGreeting && loadedEstimateBudgetAnswer === "yes" && negotiationResult && (
-              <div className="ml-12 flex flex-col gap-3">
-                <div className="w-full max-w-[480px] rounded-2xl rounded-tl-sm border border-line2 bg-gray-200 px-5 py-4 shadow-sm">
-                  <p className="text-sm font-bold text-titlefont1">모든 과정이 완료되었어요!</p>
-                </div>
-                <div className="flex w-full max-w-[480px] gap-3">
-                  <button
-                    onClick={() => {
-                      localStorage.removeItem(ESTIMATE_PROGRESS_KEY);
-                      router.push("/career?tab=estimates");
-                    }}
-                    className="flex-1 rounded-xl border border-line1 bg-white py-3 text-sm font-semibold text-titlefont2 transition hover:border-main75 hover:text-main100 cursor-pointer"
-                  >
-                    보관함 보기
-                  </button>
-                  <button
-                    onClick={handleReset}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line1 bg-white py-3 text-sm font-semibold text-titlefont2 transition hover:border-main75 hover:text-main100 cursor-pointer"
-                  >
-                    <RefreshCw className="h-4 w-4" strokeWidth={2} />
-                    새로 계산하기
-                  </button>
-                </div>
-              </div>
-            )}
-
             {showReturningGreeting && loadedEstimateBudgetAnswer === "no" && (
               <div className="flex items-start gap-3">
                 <AiAvatar />
@@ -847,7 +454,8 @@ export default function EstimatePage() {
               </div>
             )}
 
-            {showReturningGreeting && loadedEstimateBudgetAnswer === "no" && (
+            {showReturningGreeting &&
+              (loadedEstimateBudgetAnswer === "no" || (loadedEstimateBudgetAnswer === "yes" && negotiationResult)) && (
               <div className="ml-12 flex w-full max-w-[480px] items-center justify-between rounded-2xl rounded-tl-sm border border-line2 bg-gray-200 px-5 py-4 shadow-sm">
                 <p className="text-sm font-bold text-titlefont1">모든 과정이 완료되었어요!</p>
                 <button
@@ -861,9 +469,9 @@ export default function EstimatePage() {
             )}
 
             {STEP_ORDER.map((stepId, index) => {
+              if (showReturningGreeting) return null;
               if (index > answeredCount) return null;
-
-              const isActiveControl = index === answeredCount && !isTyping && !showReturningGreeting;
+              const isActiveControl = index === answeredCount && !isTyping;
 
               if (isActiveControl) {
                 return (
@@ -898,7 +506,21 @@ export default function EstimatePage() {
 
             {isTyping && <TypingBubble />}
 
-            {result && answeredCount === STEP_ORDER.length && !isTyping && hasSubmissions !== false && (
+            {/* 계산 중 */}
+            {isCalculating && answeredCount === STEP_ORDER.length && <TypingBubble />}
+
+            {/* 계산 에러 */}
+            {calcError && (
+              <div className="flex items-start gap-3">
+                <AiAvatar />
+                <QuestionBubble>
+                  {`계산 중 오류가 발생했어요. ${calcError}`}
+                </QuestionBubble>
+              </div>
+            )}
+
+            {/* 결과 */}
+            {result && answeredCount === STEP_ORDER.length && !isTyping && !isCalculating && (
               <div className="flex items-start gap-3">
                 <AiAvatar />
                 <div className="flex flex-1 flex-col gap-3">
@@ -915,7 +537,8 @@ export default function EstimatePage() {
               </div>
             )}
 
-            {result && answeredCount === STEP_ORDER.length && !isTyping && hasSubmissions !== false && (
+            {/* 협상 시뮬레이터 진입 질문 */}
+            {result && answeredCount === STEP_ORDER.length && !isTyping && !isCalculating && (
               <div className="flex items-start gap-3">
                 <AiAvatar />
                 <div className="flex flex-1 flex-col gap-3">
@@ -943,10 +566,7 @@ export default function EstimatePage() {
                       onEdit={() => {
                         setHasClientBudget(null);
                         setTargetBudget("");
-                        setNegotiationStatus("idle");
-                        setNegotiationResult(null);
                         setNegotiationModalOpen(false);
-                        setNegotiationSaved(false);
                       }}
                       editDisabled={false}
                     />
@@ -969,9 +589,7 @@ export default function EstimatePage() {
                       autoFocus
                       value={targetBudget}
                       onChange={(e) => setTargetBudget(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleNegotiationSubmit();
-                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleNegotiationSubmit(); }}
                       placeholder="예: 300"
                       className="min-w-0 flex-1 rounded-lg border border-line1 bg-bg2 px-5 py-3 text-sm text-titlefont2 placeholder:text-bodyfont4 focus:outline-none focus:ring-2 focus:border-main75 focus:ring-main25 transition-all"
                     />
@@ -995,13 +613,8 @@ export default function EstimatePage() {
               <>
                 <AnswerPill
                   text={`${targetBudget}만 원`}
-                  onEdit={() => {
-                    setNegotiationResult(null);
-                    setNegotiationStatus("idle");
-                    setNegotiationModalOpen(false);
-                    setNegotiationSaved(false);
-                  }}
-                  // "저장하기"를 눌러 백엔드에 반영된 뒤에는 수정을 막아, 다시 분석/저장해 중복 생성되는 것을 막는다.
+                  onEdit={resetNegotiation}
+                  // "저장하기"를 눌러 백엔드에 반영된 뒤에는 수정을 막아, 중복 생성되는 것을 막는다.
                   editDisabled={negotiationSaved}
                 />
                 <div className="flex items-start gap-3">
@@ -1018,16 +631,13 @@ export default function EstimatePage() {
                     </button>
                   </div>
                 </div>
+                <div className="flex items-start gap-3">
+                  <AiAvatar />
+                  <QuestionBubble fullWidth>
+                    {"클라이언트와의 협상에서 좋은 결과 얻으시길 바라요!💪 가격보다\n작업 범위를 함께 조정하는 조건으로 제안하면 훨씬 설득력 있어요."}
+                  </QuestionBubble>
+                </div>
               </>
-            )}
-
-            {hasClientBudget === "yes" && negotiationResult && (
-              <div className="flex items-start gap-3">
-                <AiAvatar />
-                <QuestionBubble fullWidth>
-                  {"클라이언트와의 협상에서 좋은 결과 얻으시길 바라요!💪 가격보다\n작업 범위를 함께 조정하는 조건으로 제안하면 훨씬 설득력 있어요."}
-                </QuestionBubble>
-              </div>
             )}
 
             {hasClientBudget === "no" && (
@@ -1040,29 +650,15 @@ export default function EstimatePage() {
             )}
 
             {(hasClientBudget === "no" || (hasClientBudget === "yes" && negotiationResult)) && (
-              <div className="ml-12 flex flex-col gap-3">
-                <div className="animate-chat-in w-full max-w-[480px] rounded-2xl rounded-tl-sm border border-line2 bg-bg2 px-5 py-4 shadow-sm">
-                  <p className="text-base font-bold text-titlefont1">모든 과정이 완료되었어요!</p>
-                  <p className="mt-1 text-sm text-bodyfont1">견적서와 협상안은 커리어 보관함에서 확인하실 수 있어요.</p>
-                </div>
-                <div className="flex w-full max-w-[480px] gap-3">
-                  <button
-                    onClick={() => {
-                      localStorage.removeItem(ESTIMATE_PROGRESS_KEY);
-                      router.push("/career?tab=estimates");
-                    }}
-                    className="flex-1 rounded-xl border border-line1 bg-white py-3 text-sm font-semibold text-titlefont2 transition hover:border-main75 hover:text-main100 cursor-pointer"
-                  >
-                    보관함 보기
-                  </button>
-                  <button
-                    onClick={handleReset}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line1 bg-white py-3 text-sm font-semibold text-titlefont2 transition hover:border-main75 hover:text-main100 cursor-pointer"
-                  >
-                    <RefreshCw className="h-4 w-4" strokeWidth={2} />
-                    새로 계산하기
-                  </button>
-                </div>
+              <div className="ml-12 flex w-full max-w-[480px] items-center justify-between rounded-2xl rounded-tl-sm border border-line2 bg-gray-200 px-5 py-4 shadow-sm">
+                <p className="text-sm font-bold text-titlefont1">모든 과정이 완료되었어요!</p>
+                <button
+                  onClick={handleReset}
+                  className="flex items-center gap-1.5 text-sm font-medium text-titlefont2 transition hover:text-main100 cursor-pointer"
+                >
+                  <RefreshCw className="h-4 w-4" strokeWidth={2} />
+                  새로 계산하기
+                </button>
               </div>
             )}
 
@@ -1071,51 +667,14 @@ export default function EstimatePage() {
         </div>
       </div>
 
-      {result && answeredCount === STEP_ORDER.length && !isTyping && hasSubmissions === false && (
-        <EstimateGateModal
-          nickname={nickname}
-          onShare={() => {
-            sessionStorage.setItem("olma_estimate_draft", JSON.stringify({
-              jobCategoryId, experienceLevelId, screens, workScope, platform, deliverables, answeredCount,
-            }));
-            router.push("/onboarding?returnTo=estimate");
-          }}
-          onDismiss={() => {
-            setResult(null);
-            setAnsweredCount(STEP_ORDER.length - 1);
-          }}
-        />
-      )}
-
       {showModal && result && (
         <EstimateModal
           result={result}
-          nickname={nickname}
+          nickname=""
           onClose={() => setShowModal(false)}
-          // 이전 견적서를 다시 열어본 경우(selectedEstimateDetail 존재, 읽기 전용)에는 저장 버튼을
-          // 아예 숨긴다. 이미 저장한 견적은 initialSaved로 "저장됨" 잠금 상태로 열어, 안내는 유지하되
-          // estimateAPI.save()가 재호출되어 중복 견적이 생기는 것은 막는다.
-          initialSaved={estimateSaved}
-          onSave={
-            selectedEstimateDetail
-              ? undefined
-              : async (name) => {
-                  if (!experienceLevelId || !jobCategoryId || !workScope || !platform) {
-                    throw new Error("필수 입력 값이 누락되었습니다.");
-                  }
-                  await estimateAPI.save({
-                    experienceLevelId,
-                    jobCategoryId,
-                    screenCount: Number(screens),
-                    uxEngagement: UX_ENGAGEMENT_MAP[workScope],
-                    platformEnvironment: PLATFORM_ENV_MAP[platform],
-                    addons: deliverables.map((d) => ADDON_MAP[d]).filter(Boolean),
-                    projectName: name,
-                    negotiationTargetBudgetAmount: negotiationResult?.targetBudgetAmount,
-                  });
-                  setEstimateSaved(true);
-                }
-          }
+          // 이전 견적서를 다시 열어본 경우(읽기 전용)에는 저장 버튼을 아예 숨긴다 — 이미 저장된 견적이다.
+          initialSaved={selectedEstimateDetail ? true : estimateSaved}
+          onSave={selectedEstimateDetail ? undefined : handleSave}
         />
       )}
 
@@ -1124,35 +683,9 @@ export default function EstimatePage() {
           negotiationResult={negotiationResult}
           onClose={() => setNegotiationModalOpen(false)}
           initialSaved={selectedEstimateDetail ? loadedNegotiationSaved : negotiationSaved}
-          onSaveTogether={async () => {
-            // 로드된 견적서는 "저장하기"를 누른 시점에 비로소 기존 견적서(id)를 start/complete로 갱신한다.
-            // (complete는 한 번 저장되면 덮어쓰기가 안 되므로 저장 전까지는 분석만 하고 저장을 미룬다.)
-            if (selectedEstimateDetail) {
-              await estimateAPI.startNegotiationSimulation(selectedEstimateDetail.id);
-              await estimateAPI.completeNegotiationSimulation(selectedEstimateDetail.id, negotiationResult);
-              setLoadedNegotiationSaved(true);
-            } else {
-              if (!experienceLevelId || !jobCategoryId || !workScope || !platform) {
-                throw new Error("필수 입력 값이 누락되었습니다.");
-              }
-              await estimateAPI.save({
-                experienceLevelId,
-                jobCategoryId,
-                screenCount: Number(screens),
-                uxEngagement: UX_ENGAGEMENT_MAP[workScope],
-                platformEnvironment: PLATFORM_ENV_MAP[platform],
-                addons: deliverables.map((d) => ADDON_MAP[d]).filter(Boolean),
-                negotiationTargetBudgetAmount: negotiationResult.targetBudgetAmount,
-              });
-              // 협상안과 함께 저장하면 기본 견적서도 함께 생성되므로, 별도 "견적서 저장" 버튼도 잠가
-              // 같은 견적이 중복 생성되지 않게 한다.
-              setNegotiationSaved(true);
-              setEstimateSaved(true);
-            }
-          }}
+          onSaveTogether={handleSaveWithNegotiation}
         />
       )}
-
     </div>
   );
 }
