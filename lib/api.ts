@@ -92,13 +92,13 @@ export const userAPI = {
       body: JSON.stringify(body),
     }),
 
-  saveSpecProgress: (body: {
+  saveSpecProgress: (userId: number, body: {
     jobCategoryId?: number;
     experienceLevelId?: number;
     certificateTypeIds?: number[];
   }) =>
-    fetchAPI("/v1/users/me/profile/spec-progress", {
-      method: "PATCH",
+    fetchAPI(`/v1/users/${userId}/profile`, {
+      method: "PUT",
       body: JSON.stringify(body),
     }),
 
