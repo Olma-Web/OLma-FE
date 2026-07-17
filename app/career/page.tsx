@@ -119,7 +119,10 @@ function getBenchmarkAmount(submission: SubmissionItem | null): number | null {
 }
 
 function TrendCard({ submissions }: { submissions: SubmissionItem[] }) {
-  const values = submissions
+  // 목표 단가(TRACK_B) 제외하고 실제 단가(TRACK_A)만 필터링
+  const actualSubmissions = submissions.filter((item) => item.submissionType === "TRACK_A");
+
+  const values = actualSubmissions
     .map((item) => getBenchmarkAmount(item))
     .filter((value): value is number => value != null);
 
@@ -223,7 +226,8 @@ export default function CareerPage() {
           .filter(({ r }) => r.status === "fulfilled")
           .map(({ id }) => id);
         localStorage.setItem("careerSavedIds", JSON.stringify(survivingIds));
-        setSubmissions(valid);
+        // 최신순으로 정렬 (가장 최근 기록이 상단)
+        setSubmissions(valid.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       } else {
         setSubmissions([]);
       }
@@ -670,7 +674,7 @@ export default function CareerPage() {
 
         {/* Edit Modal */}
         {showEditModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/20 px-4">
             <div className="rounded-2xl bg-white px-6 py-8 shadow-xl max-w-md w-full">
               <h3 className="mb-6 text-xl font-bold text-gray-900">이름 변경하기</h3>
               <input
