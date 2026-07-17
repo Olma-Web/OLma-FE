@@ -37,6 +37,7 @@ interface UserProfile {
 }
 
 interface SubmissionItem {
+  id: number;
   workFormat: string;
   amount: number;
   amountUnit: string;
@@ -45,6 +46,7 @@ interface SubmissionItem {
   experienceLevelLabel: string;
   submissionType: string;
   createdAt?: string;
+  projectName?: string;
 }
 
 interface JobCategoryOption {
@@ -710,12 +712,10 @@ export default function MarketDashboard() {
     const raw = localStorage.getItem("careerSavedIds");
     const savedIds: number[] = raw ? JSON.parse(raw) : [];
 
-    // 새로운 submission이 들어오면 해당 기록이 저장되지 않은 것이므로 saveStatus를 "idle"로 리셋
-    // 최신 submission의 createdAt 기반으로 판별
-    if (submissions.length > 0 && saveStatus === "saved") {
-      setSaveStatus("idle");
-    }
-  }, [submissions.length]);
+    // 최신 submission이 careerSavedIds에 포함되어 있으면 이미 저장된 것
+    const isLatestSaved = savedIds.includes(latestSubmission.id);
+    setSaveStatus(isLatestSaved ? "saved" : "idle");
+  }, [latestSubmission?.id]);
 
   const handleSave = () => {
     if (saveStatus === "saving" || saveStatus === "saved") return;
@@ -726,26 +726,21 @@ export default function MarketDashboard() {
   };
 
   const handleSaveWithProject = async () => {
-    const userId = typeof window !== "undefined" ? Number(localStorage.getItem("userId")) : null;
-    if (!userId || !userProfile || !latestSubmission) return;
+    if (!latestSubmission) return;
 
     setSaveStatus("saving");
     try {
-      const result = await careerSaveAPI.save({
-        jobCategoryId: userProfile.jobCategoryId,
-        experienceLevelId: userProfile.experienceLevelId,
-        userId,
-        submissionType: latestSubmission.submissionType,
-        workFormat: latestSubmission.workFormat,
-        amount: latestSubmission.amount,
-        amountUnit: latestSubmission.amountUnit,
-        sessionId: crypto.randomUUID(),
-        projectName: projectName || undefined,
-      });
+      // 기존 submission의 projectName 업데이트
+      await careerSaveAPI.updateProjectName(latestSubmission.id, projectName);
+
+      // careerSavedIds에 이 submission 추가
       const raw = localStorage.getItem("careerSavedIds");
       const ids: number[] = raw ? JSON.parse(raw) : [];
-      if (!ids.includes(result.id)) ids.push(result.id);
-      localStorage.setItem("careerSavedIds", JSON.stringify(ids));
+      if (!ids.includes(latestSubmission.id)) {
+        ids.push(latestSubmission.id);
+        localStorage.setItem("careerSavedIds", JSON.stringify(ids));
+      }
+
       setSaveStatus("saved");
       setShowProjectModal(false);
       setProjectName("");
