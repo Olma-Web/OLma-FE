@@ -495,6 +495,19 @@ function BarChart({
 
       {/* Chart */}
       <div className="mt-4 flex gap-3">
+        {/* Y-axis Label */}
+        <div
+          className="flex items-center justify-center"
+          style={{ height: BAR_HEIGHT }}
+        >
+          <p
+            className="text-xs text-gray-400"
+            style={{ writingMode: "vertical-rl" }}
+          >
+            디자이너 수(명)
+          </p>
+        </div>
+
         {/* Y-axis */}
         <div
           className="flex flex-col-reverse justify-between pb-6 pr-2 text-right text-xs"
@@ -580,18 +593,6 @@ function BarChart({
           </div>
           <p className="mt-1 text-center text-xs text-gray-400">
             {unitLabel}
-          </p>
-        </div>
-
-        <div
-          className="flex items-center justify-center"
-          style={{ height: BAR_HEIGHT }}
-        >
-          <p
-            className="text-xs text-gray-400"
-            style={{ writingMode: "vertical-rl" }}
-          >
-            디자이너 수(명)
           </p>
         </div>
       </div>
