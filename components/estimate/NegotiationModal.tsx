@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { type EstimateNegotiationResult } from "@/lib/estimate/constants";
+import { type EstimateNegotiationResult } from "@/hooks/useEstimateChat";
 
 const toMan = (won: number) => Math.round(won / 10000);
 
