@@ -92,6 +92,19 @@ export const userAPI = {
       body: JSON.stringify(body),
     }),
 
+  saveSpecProgress: (body: {
+    jobCategoryId?: number;
+    experienceLevelId?: number;
+    certificateTypeIds?: number[];
+  }) =>
+    fetchAPI("/v1/users/me/profile/spec-progress", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  getMe: () =>
+    fetchAPI("/v1/users/me/profile"),
+
   changePassword: (body: {
     currentPassword: string;
     newPassword: string;

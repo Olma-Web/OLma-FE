@@ -21,6 +21,27 @@ function OnboardingContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [specUpdateAnswers, setSpecUpdateAnswers] = useState<Record<number, string | string[]>>({});
 
+  // 스펙 업데이트 진행 상태 복원 (페이지 새로고침 후에도 유지)
+  useEffect(() => {
+    if (isSpecUpdate && typeof window !== "undefined") {
+      const saved = localStorage.getItem("specUpdateProgress");
+      if (saved) {
+        try {
+          setSpecUpdateAnswers(JSON.parse(saved));
+        } catch {
+          // 파싱 실패 시 무시
+        }
+      }
+    }
+  }, [isSpecUpdate]);
+
+  // 스펙 업데이트 진행 상태 저장
+  useEffect(() => {
+    if (isSpecUpdate && typeof window !== "undefined" && Object.keys(specUpdateAnswers).length > 0) {
+      localStorage.setItem("specUpdateProgress", JSON.stringify(specUpdateAnswers));
+    }
+  }, [specUpdateAnswers, isSpecUpdate]);
+
   const allSteps = getSteps(answers[1] as string, answers[6] as string);
   const steps = isSpecUpdate ? allSteps.filter((s) => [2, 3, 4].includes(s.id)) : allSteps;
   const totalSteps = steps.length;
@@ -101,18 +122,23 @@ function OnboardingContent() {
 
       if (isSpecUpdate) {
         // Spec update mode: 프로필 업데이트만
-        if (userId) {
-          const selectedCerts = (specUpdateAnswers[4] as string[] ?? [])
-            .filter((c) => c !== "없음")
-            .map((c) => certificateMap[c])
-            .filter(Boolean) as number[];
+        const selectedCerts = (specUpdateAnswers[4] as string[] ?? [])
+          .filter((c) => c !== "없음")
+          .map((c) => certificateMap[c])
+          .filter(Boolean) as number[];
 
-          await userAPI.updateProfile(userId, {
-            jobCategoryId: jobCategoryMap[specUpdateAnswers[2] as string],
-            experienceLevelId: experienceLevelMap[specUpdateAnswers[3] as string],
-            certificateTypeIds: selectedCerts,
-          });
+        // PATCH API로 스펙 진행 상태 저장
+        await userAPI.saveSpecProgress({
+          jobCategoryId: jobCategoryMap[specUpdateAnswers[2] as string],
+          experienceLevelId: experienceLevelMap[specUpdateAnswers[3] as string],
+          certificateTypeIds: selectedCerts,
+        });
+
+        // 저장된 진행 상태 제거
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("specUpdateProgress");
         }
+
         // 스펙 업데이트 완료 후 바로 커리어 페이지로 이동 (자동으로 데이터 새로고침됨)
         window.location.href = "/career";
       } else {
