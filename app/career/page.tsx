@@ -119,7 +119,10 @@ function getBenchmarkAmount(submission: SubmissionItem | null): number | null {
 }
 
 function TrendCard({ submissions }: { submissions: SubmissionItem[] }) {
-  const values = submissions
+  // 목표 단가(TRACK_B) 제외하고 실제 단가(TRACK_A)만 필터링
+  const actualSubmissions = submissions.filter((item) => item.submissionType === "TRACK_A");
+
+  const values = actualSubmissions
     .map((item) => getBenchmarkAmount(item))
     .filter((value): value is number => value != null);
 
@@ -223,7 +226,8 @@ export default function CareerPage() {
           .filter(({ r }) => r.status === "fulfilled")
           .map(({ id }) => id);
         localStorage.setItem("careerSavedIds", JSON.stringify(survivingIds));
-        setSubmissions(valid);
+        // 최신순으로 정렬 (가장 최근 기록이 상단)
+        setSubmissions(valid.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       } else {
         setSubmissions([]);
       }
