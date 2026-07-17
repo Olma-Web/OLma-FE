@@ -24,10 +24,18 @@ function OnboardingContent() {
   // 스펙 업데이트 진행 상태 복원 (페이지 새로고침 후에도 유지)
   useEffect(() => {
     if (isSpecUpdate && typeof window !== "undefined") {
-      const saved = localStorage.getItem("specUpdateProgress");
-      if (saved) {
+      const savedAnswers = localStorage.getItem("specUpdateProgress");
+      const savedStep = localStorage.getItem("specUpdateStep");
+      if (savedAnswers) {
         try {
-          setSpecUpdateAnswers(JSON.parse(saved));
+          setSpecUpdateAnswers(JSON.parse(savedAnswers));
+        } catch {
+          // 파싱 실패 시 무시
+        }
+      }
+      if (savedStep) {
+        try {
+          setCurrentStep(Number(JSON.parse(savedStep)));
         } catch {
           // 파싱 실패 시 무시
         }
@@ -39,8 +47,9 @@ function OnboardingContent() {
   useEffect(() => {
     if (isSpecUpdate && typeof window !== "undefined" && Object.keys(specUpdateAnswers).length > 0) {
       localStorage.setItem("specUpdateProgress", JSON.stringify(specUpdateAnswers));
+      localStorage.setItem("specUpdateStep", JSON.stringify(currentStep));
     }
-  }, [specUpdateAnswers, isSpecUpdate]);
+  }, [specUpdateAnswers, currentStep, isSpecUpdate]);
 
   const allSteps = getSteps(answers[1] as string, answers[6] as string);
   const steps = isSpecUpdate ? allSteps.filter((s) => [2, 3, 4].includes(s.id)) : allSteps;
@@ -122,13 +131,14 @@ function OnboardingContent() {
 
       if (isSpecUpdate) {
         // Spec update mode: 프로필 업데이트만
+        const userId = Number(localStorage.getItem("userId"));
         const selectedCerts = (specUpdateAnswers[4] as string[] ?? [])
           .filter((c) => c !== "없음")
           .map((c) => certificateMap[c])
           .filter(Boolean) as number[];
 
-        // PATCH API로 스펙 진행 상태 저장
-        await userAPI.saveSpecProgress({
+        // PUT API로 스펙 업데이트 저장
+        await userAPI.saveSpecProgress(userId, {
           jobCategoryId: jobCategoryMap[specUpdateAnswers[2] as string],
           experienceLevelId: experienceLevelMap[specUpdateAnswers[3] as string],
           certificateTypeIds: selectedCerts,
@@ -137,6 +147,7 @@ function OnboardingContent() {
         // 저장된 진행 상태 제거
         if (typeof window !== "undefined") {
           localStorage.removeItem("specUpdateProgress");
+          localStorage.removeItem("specUpdateStep");
         }
 
         // 스펙 업데이트 완료 후 바로 커리어 페이지로 이동 (자동으로 데이터 새로고침됨)
