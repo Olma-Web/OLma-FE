@@ -21,31 +21,33 @@ export default function Home() {
   };
 
   return (
-    <div className="relative isolate flex w-full flex-col font-sans">
-      <div className="bg-home-background-layer pointer-events-none" aria-hidden />
+    <>
+      {/* Toast - 최상위에 렌더링되어 fixed positioning 제약 없음 */}
+      {toast && (
+        <div className="fixed left-1/2 top-1/6 z-[100] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-gray-900 px-5 py-3 text-sm text-white shadow-lg">
+          로그인 후 이용할 수 있어요
+        </div>
+      )}
 
-      {/* Hero Section */}
-      <div className="relative z-10 flex min-h-screen flex-col">
-        <Topbar />
-        <main className="flex flex-1 flex-col items-center justify-center px-4 pb-24 pt-6 md:px-8 md:pb-32 md:pt-10">
-          <p className="mb-5 max-w-2xl text-center text-sm leading-relaxed text-neutral-600 md:mb-6 md:text-[15px]">
-            정보 비대칭 해소부터 실전 견적 계산까지, Olma와 함께!
-          </p>
+      <div className="relative isolate flex w-full flex-col font-sans">
+        <div className="bg-home-background-layer pointer-events-none" aria-hidden />
 
-          <h1 className="mb-9 max-w-[min(100%,24rem)] text-center text-[1.65rem] font-bold leading-snug tracking-tight text-neutral-900 sm:max-w-2xl sm:text-3xl md:mb-10 md:max-w-4xl md:text-4xl lg:text-[2.65rem] lg:leading-[1.25]">
-            나의{" "}
-            <span className="inline-block bg-gradient-to-r from-hero-accent1 to-main50 bg-clip-text text-transparent">
-              진짜 시장 가치,
-            </span>
-            <br />
-            궁금하지 않으신가요?
-          </h1>
+        {/* Hero Section */}
+        <div className="relative z-10 flex min-h-screen flex-col">
+          <Topbar />
+          <main className="flex flex-1 flex-col items-center justify-center px-4 pb-24 pt-6 md:px-8 md:pb-32 md:pt-10">
+            <p className="mb-5 max-w-2xl text-center text-sm leading-relaxed text-neutral-600 md:mb-6 md:text-[15px]">
+              정보 비대칭 해소부터 실전 견적 계산까지, Olma와 함께!
+            </p>
 
-          {toast && (
-            <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-xl bg-gray-900 px-5 py-3 text-sm text-white shadow-lg">
-              로그인 후 이용할 수 있어요
-            </div>
-          )}
+            <h1 className="mb-9 max-w-[min(100%,24rem)] text-center text-[1.65rem] font-bold leading-snug tracking-tight text-neutral-900 sm:max-w-2xl sm:text-3xl md:mb-10 md:max-w-4xl md:text-4xl lg:text-[2.65rem] lg:leading-[1.25]">
+              나의{" "}
+              <span className="inline-block bg-gradient-to-r from-hero-accent1 to-main50 bg-clip-text text-transparent">
+                진짜 시장 가치,
+              </span>
+              <br />
+              궁금하지 않으신가요?
+            </h1>
 
           <button
             onClick={handleAnalyze}
@@ -199,6 +201,7 @@ export default function Home() {
               />
             </div>
         </footer>
-    </div>
+      </div>
+    </>
   );
 }

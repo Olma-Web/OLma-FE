@@ -5,7 +5,7 @@
   --foreground: #171717;
   --hero-accent: #454eff;
   --home-background-image: url("/home_background.png");
-  --home-background-position: center bottom;
+  --home-background-position: center top;
 }
 
 @theme inline {
@@ -74,7 +74,7 @@ body {
     z-index: 0;
     background-color: #e8eef5;
     background-image: var(--home-background-image);
-    background-size: cover;
+    background-size: 100% 30%;
     background-position: var(--home-background-position);
     background-repeat: no-repeat;
   }
