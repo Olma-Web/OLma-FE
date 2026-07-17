@@ -674,7 +674,7 @@ export default function CareerPage() {
 
         {/* Edit Modal */}
         {showEditModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/20 px-4">
             <div className="rounded-2xl bg-white px-6 py-8 shadow-xl max-w-md w-full">
               <h3 className="mb-6 text-xl font-bold text-gray-900">이름 변경하기</h3>
               <input
