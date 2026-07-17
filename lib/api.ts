@@ -22,7 +22,8 @@ export class ApiError extends Error {
 }
 
 async function fetchAPI(endpoint: string, options?: RequestInit) {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const isBrowser = typeof window !== "undefined";
+  const token = isBrowser ? localStorage.getItem("token") : null;
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
@@ -35,6 +36,15 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
   });
 
   if (!res.ok) {
+    if (res.status === 401 && endpoint !== "/v1/auth/login") {
+      if (!isBrowser) {
+        throw new ApiError("세션이 만료되었습니다.", 401);
+      }
+      localStorage.removeItem("token");
+      localStorage.removeItem("userId");
+      window.location.href = "/login";
+      throw new ApiError("세션이 만료되었습니다.", 401);
+    }
     const err = await res.json();
     throw new ApiError(translateError(err.message), res.status);
   }
@@ -159,8 +169,19 @@ export const estimateAPI = {
       method: "PATCH",
     }),
 
+  progressNegotiationSimulation: (estimateId: number, state: unknown) =>
+    fetchAPI(`/v1/estimates/${estimateId}/negotiation-simulation/progress`, {
+      method: "PATCH",
+      body: JSON.stringify({ state }),
+    }),
+
   completeNegotiationSimulation: (estimateId: number, state: unknown) =>
     fetchAPI(`/v1/estimates/${estimateId}/negotiation-simulation/complete`, {
+      method: "PATCH",
+      body: JSON.stringify({ state }),
+    }),
+  updateNegotiationSimulationProgress: (estimateId: number, state: unknown) =>
+    fetchAPI(`/v1/estimates/${estimateId}/negotiation-simulation/progress`, {
       method: "PATCH",
       body: JSON.stringify({ state }),
     }),
@@ -179,6 +200,8 @@ export const estimateAPI = {
       if (!res.ok && res.status !== 204) throw new Error("삭제에 실패했습니다.");
     }),
 
+  // ── 추가된 것들 ──────────────────────────────────────
+
   calculate: (body: {
     experienceLevelId: number;
     jobCategoryId: number;
@@ -186,11 +209,31 @@ export const estimateAPI = {
     uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";
     platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
     addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];
+    projectName?: string;
+    negotiationTargetBudgetAmount?: number;
   }) =>
     fetchAPI("/v1/estimates/calculate", {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  simulateNegotiation: (body: {
+    experienceLevelId: number;
+    jobCategoryId: number;
+    screenCount: number;
+    uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";
+    platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
+    addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];
+    projectName?: string;
+    targetBudgetAmount: number;
+    negotiationTargetBudgetAmount?: number;
+  }) =>
+    fetchAPI("/v1/estimates/negotiation/simulate", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  // ─────────────────────────────────────────────────────
 
   save: (body: {
     experienceLevelId: number;
@@ -207,26 +250,40 @@ export const estimateAPI = {
       body: JSON.stringify(body),
     }),
 
-  simulateNegotiation: (body: {
-    experienceLevelId: number;
-    jobCategoryId: number;
-    screenCount: number;
-    uxEngagement: "GUI_ONLY" | "WIREFRAME_PLUS" | "FULL_PLANNING";
-    platformEnvironment: "MOBILE_APP" | "PC_WEB" | "RESPONSIVE_WEB";
-    addons?: ("DESIGN_SYSTEM" | "PROTOTYPING" | "SOURCE_TRANSFER")[];
-    targetBudgetAmount: number;
-  }) =>
-    fetchAPI("/v1/estimates/negotiation/simulate", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-
   updateProjectName: (estimateId: number, projectName: string) =>
     fetchAPI(`/v1/estimates/${estimateId}/project-name`, {
       method: "PATCH",
       body: JSON.stringify({ projectName }),
     }),
+};
 
+// 진행 중인 흐름(온보딩/견적) 임시 저장 — 새로고침해도 이어할 수 있게 한다.
+// state는 draft 종류(ONBOARDING/ESTIMATE)마다 모양이 다르므로 제네릭으로 열어두고,
+// 호출하는 쪽(예: useEstimateChat의 EstimateDraftState)에서 실제 타입을 지정한다.
+export interface UserDraftResponse<T = unknown> {
+  id: number;
+  type: "ONBOARDING" | "ESTIMATE";
+  status: "IN_PROGRESS" | "COMPLETED";
+  state: T;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+}
+
+export const draftAPI = {
+  get: <T = unknown>(type: "ONBOARDING" | "ESTIMATE"): Promise<UserDraftResponse<T>> =>
+    fetchAPI(`/v1/users/me/drafts/${type}`),
+
+  save: <T = unknown>(type: "ONBOARDING" | "ESTIMATE", state: T): Promise<UserDraftResponse<T>> =>
+    fetchAPI(`/v1/users/me/drafts/${type}`, {
+      method: "PATCH",
+      body: JSON.stringify({ state }),
+    }),
+
+  delete: (type: "ONBOARDING" | "ESTIMATE"): Promise<null> =>
+    fetchAPI(`/v1/users/me/drafts/${type}`, {
+      method: "DELETE",
+    }),
 };
 
 // 커리어 보관함 저장

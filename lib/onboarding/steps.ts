@@ -6,7 +6,6 @@ export interface Step {
   type: StepType;
   options?: string[];
   placeholder?: string;
-  hint?: string;
   description?: string;
 }
 
@@ -104,7 +103,6 @@ const UNDECIDED_MONTHLY: Step[] = [
     question: "조건에 딱 맞는 시장 단가 데이터를 찾았어요!",
     description: "결과를 열어보기 전, 클라이언트에게 제안해 볼 '1차 목표 금액'을 가볍게 적어주세요.",
     placeholder: "만 원 단위로 희망 금액을 입력해주세요",
-    hint: "진짜 감이 안 와요 (건너뛰기)",
   },
 ];
 
@@ -121,7 +119,6 @@ const UNDECIDED_FREELANCE: Step[] = [
     question: "조건에 딱 맞는 시장 단가 데이터를 찾았어요!",
     description: "결과를 열어보기 전, 클라이언트에게 제안해 볼 '1차 목표 금액'을 가볍게 적어주세요.",
     placeholder: "만 원 단위로 희망 금액을 입력해주세요",
-    hint: "진짜 감이 안 와요 (건너뛰기)",
   },
 ];
 
