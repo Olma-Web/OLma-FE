@@ -445,16 +445,26 @@ function BarChart({
   maxValue,
   median,
   totalN,
+  amountUnit,
+  submissionType,
 }: {
   data: BarData[];
   yTicks: number[];
   maxValue: number;
   median: number | null;
   totalN: number;
+  amountUnit?: string;
+  submissionType?: string;
 }) {
   const initialUserBar = data.find((b) => b.isUser)?.range ?? null;
   const [hoveredBar, setHoveredBar] = useState<string | null>(initialUserBar);
   const BAR_HEIGHT = 180;
+
+  const isMonthly = amountUnit === "MONTHLY";
+  const isTrackB = submissionType === "TRACK_B";
+  const chartTitle = isMonthly ? "단가 분포 그래프 (월 단위 계약)" : "단가 분포 그래프 (건별 외주 계약)";
+  const unitLabel = isMonthly ? "월 단가 (만원)" : "단가 (만원)";
+  const userLegendLabel = isTrackB ? "내 희망 단가" : "내 단가";
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -462,7 +472,7 @@ function BarChart({
       <div className="mb-1 flex items-start justify-between">
         <div>
           <h2 className="text-base font-bold text-gray-900">
-            단가 분포 그래프
+            {chartTitle}
           </h2>
           <p className="text-sm text-gray-500 mt-0.5">
             시장의 중간 가격:{" "}
@@ -478,13 +488,26 @@ function BarChart({
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-3 w-3 rounded-sm bg-gradient-to-t from-pink-300 to-pink-200" />
-            내 단가
+            {userLegendLabel}
           </span>
         </div>
       </div>
 
       {/* Chart */}
       <div className="mt-4 flex gap-3">
+        {/* Y-axis Label */}
+        <div
+          className="flex items-center justify-center"
+          style={{ height: BAR_HEIGHT }}
+        >
+          <p
+            className="text-xs text-gray-400"
+            style={{ writingMode: "vertical-rl" }}
+          >
+            디자이너 수(명)
+          </p>
+        </div>
+
         {/* Y-axis */}
         <div
           className="flex flex-col-reverse justify-between pb-6 pr-2 text-right text-xs"
@@ -569,19 +592,7 @@ function BarChart({
             ))}
           </div>
           <p className="mt-1 text-center text-xs text-gray-400">
-            단가 (만원)
-          </p>
-        </div>
-
-        <div
-          className="flex items-center justify-center"
-          style={{ height: BAR_HEIGHT }}
-        >
-          <p
-            className="text-xs text-gray-400"
-            style={{ writingMode: "vertical-rl" }}
-          >
-            디자이너 수(명)
+            {unitLabel}
           </p>
         </div>
       </div>
@@ -860,7 +871,7 @@ export default function MarketDashboard() {
           <StatCard
             label="시장 중앙 단가"
             value={benchmark?.median != null ? `${benchmark.median}만원` : "-"}
-            caption="유사 조건 월 환산 기준"
+            caption="유사 조건 기준"
           />
           <StatCard
             label="데이터 신뢰도"
@@ -895,6 +906,8 @@ export default function MarketDashboard() {
             maxValue={yMax}
             median={benchmark?.median ?? null}
             totalN={benchmark?.n ?? 0}
+            amountUnit={latestSubmission?.amountUnit}
+            submissionType={latestSubmission?.submissionType}
           />
         </div>
 
@@ -902,7 +915,7 @@ export default function MarketDashboard() {
         <div className="mt-6 flex flex-col items-start justify-between gap-4 rounded-2xl bg-[#E5E5E5]/60 px-6 py-6 sm:flex-row sm:items-center">
           <div>
             <h3 className="text-lg font-bold text-main100">
-              내 건별 단가 시장 위치를 확인하셨나요?
+              내 시장 평균 단가를 확인하셨나요?
             </h3>
             <p className="mt-1 text-sm text-gray-600">
               이제 이 기준으로 클라이언트에게 보낼 세부 견적을 뽑아보세요!

@@ -163,11 +163,59 @@ function OnboardingContent() {
     }
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
     setIsLoading(true);
-    setTimeout(() => {
+
+    try {
+      const userId = Number(localStorage.getItem("userId"));
+
+      // Skip 시에도 현재 입력된 답변으로 submission 생성
+      const isTrackA = answers[1] === "네, 이미 정해졌어요";
+      const isMonthly = answers[6] === "월 단위 계약";
+      const lastStepId = allSteps[allSteps.length - 1].id;
+      const lastAnswer = answers[lastStepId] as string;
+      const durationStepId = allSteps.find((s) => s.type === "single" && s.id === 7)?.id;
+      const durationAnswer = durationStepId ? answers[durationStepId] as string : undefined;
+
+      // 필수 답변이 있는 경우만 submission 생성
+      if (answers[2] && answers[3] && lastAnswer) {
+        const body: Record<string, unknown> = {
+          jobCategoryId: jobCategoryMap[answers[2] as string],
+          experienceLevelId: experienceLevelMap[answers[3] as string],
+          userId: userId,
+          submissionType: isTrackA ? "TRACK_A" : "TRACK_B",
+          workFormat: workFormatMap[answers[5] as string],
+          amount: Number(lastAnswer),
+          amountUnit: isMonthly ? "MONTHLY" : "TOTAL",
+          sessionId: crypto.randomUUID(),
+        };
+
+        if (!isMonthly && durationAnswer) {
+          body.duration = durationMap[durationAnswer];
+        }
+
+        const result = await submissionAPI.submit(body);
+
+        // submission 후 user profile에 jobCategory/experienceLevel 저장
+        if (userId) {
+          const selectedCerts = (answers[4] as string[] ?? [])
+            .filter((c) => c !== "없음")
+            .map((c) => certificateMap[c])
+            .filter(Boolean) as number[];
+
+          await userAPI.updateProfile(userId, {
+            jobCategoryId: jobCategoryMap[answers[2] as string],
+            experienceLevelId: experienceLevelMap[answers[3] as string],
+            certificateTypeIds: selectedCerts,
+          });
+        }
+      }
+
       window.location.href = "/dashboard";
-    }, 1500);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "서버에 연결할 수 없어요");
+      setIsLoading(false);
+    }
   };
 
   return (
