@@ -96,7 +96,7 @@ function amountUnitLabel(unit: string): string {
 
 function getSubmissionTypeLabel(type: string): { label: string; color: string } {
   if (type === "TRACK_B") {
-    return { label: "목표 단가", color: "bg-[#FFDEF5] text-[#B74E97]" };
+    return { label: "희망 단가", color: "bg-[#FFDEF5] text-[#B74E97]" };
   }
   if (type === "TRACK_A") {
     return { label: "실제 단가", color: "bg-sub50 text-sub175" };
@@ -144,10 +144,16 @@ function TrendCard({ submissions }: { submissions: SubmissionItem[] }) {
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
-      <h2 className="text-base font-bold text-gray-900">내 단가 추세</h2>
+      <div className="flex items-center gap-x-2">
+        <h2 className="text-base font-bold text-gray-900">내 단가 추세</h2>
+        <div className="flex items-center text-sm">
+          <span className="text-gray-500">실제 단가만 반영되며,</span>
+          <span className="text-gray-500">건별 계약은 월 단위 기준으로 자동 계산돼요.</span>
+        </div>
+      </div>
       <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-lg bg-gray-50 px-4 py-3">
-          <p className="text-xs text-gray-500">최근 변화</p>
+          <p className="text-xs text-gray-500">직전 대비 변화율</p>
           <p className={`mt-1 text-lg font-bold ${diffPct != null && diffPct >= 0 ? "text-main100" : "text-[#b45309]"}`}>
             {diffPct != null ? `${diffPct >= 0 ? "+" : ""}${diffPct}%` : "-"}
           </p>
