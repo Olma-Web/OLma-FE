@@ -147,8 +147,7 @@ function TrendCard({ submissions }: { submissions: SubmissionItem[] }) {
       <div className="flex items-center gap-x-2">
         <h2 className="text-base font-bold text-gray-900">내 단가 추세</h2>
         <div className="flex items-center text-xs">
-          <span className="text-gray-500">실제 단가만 반영되며, </span>
-          <span className="text-gray-500">건별 계약은 월 단위 기준으로 자동 계산돼요.</span>
+          <span className="text-gray-500">실제 단가만 반영되며, 건별 계약은 월 단위 기준으로 자동 계산돼요.</span>
         </div>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
