@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, RefreshCw, Search, User } from "lucide-react";
+import { Check, FileText, RefreshCw, Search, User } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Topbar from "@/components/topbar";
 import EstimateModal from "@/components/estimate/EstimateModal";
 import NegotiationModal from "@/components/estimate/NegotiationModal";
@@ -20,6 +21,7 @@ import {
 import { useEstimateChat } from "@/hooks/useEstimateChat";
 
 export default function EstimatePage() {
+  const router = useRouter();
   const {
     jobCategoryId,     setJobCategoryId,
     experienceLevelId, setExperienceLevelId,
@@ -456,15 +458,27 @@ export default function EstimatePage() {
 
             {showReturningGreeting &&
               (loadedEstimateBudgetAnswer === "no" || (loadedEstimateBudgetAnswer === "yes" && negotiationResult)) && (
-              <div className="ml-12 flex w-full max-w-[480px] items-center justify-between rounded-2xl rounded-tl-sm border border-line2 bg-gray-200 px-5 py-4 shadow-sm">
-                <p className="text-sm font-bold text-titlefont1">모든 과정이 완료되었어요!</p>
-                <button
-                  onClick={handleReset}
-                  className="flex items-center gap-1.5 text-sm font-medium text-titlefont2 transition hover:text-main100 cursor-pointer"
-                >
-                  <RefreshCw className="h-4 w-4" strokeWidth={2} />
-                  새로 계산하기
-                </button>
+              <div className="ml-12 flex w-full max-w-[480px] flex-col gap-3">
+                <div className="flex flex-col gap-1 rounded-2xl rounded-tl-sm border border-line2 bg-gray-200 px-5 py-4 shadow-sm">
+                  <p className="text-sm font-bold text-titlefont1">모든 과정이 완료되었어요!</p>
+                  <p className="text-xs text-bodyfont4">견적서와 협상안은 커리어 보관함에서 확인하실 수 있어요.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => router.push("/career?tab=estimates")}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line2 bg-transparent py-2.5 text-sm font-semibold text-main100 transition hover:bg-main25 cursor-pointer"
+                  >
+                    <FileText className="h-4 w-4" strokeWidth={2} />
+                    보관함 보기
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line2 bg-transparent py-2.5 text-sm font-semibold text-titlefont1 transition hover:bg-gray-100 cursor-pointer"
+                  >
+                    <RefreshCw className="h-4 w-4" strokeWidth={2} />
+                    새로 계산하기
+                  </button>
+                </div>
               </div>
             )}
 
@@ -650,15 +664,27 @@ export default function EstimatePage() {
             )}
 
             {(hasClientBudget === "no" || (hasClientBudget === "yes" && negotiationResult)) && (
-              <div className="ml-12 flex w-full max-w-[480px] items-center justify-between rounded-2xl rounded-tl-sm border border-line2 bg-gray-200 px-5 py-4 shadow-sm">
-                <p className="text-sm font-bold text-titlefont1">모든 과정이 완료되었어요!</p>
-                <button
-                  onClick={handleReset}
-                  className="flex items-center gap-1.5 text-sm font-medium text-titlefont2 transition hover:text-main100 cursor-pointer"
-                >
-                  <RefreshCw className="h-4 w-4" strokeWidth={2} />
-                  새로 계산하기
-                </button>
+              <div className="ml-12 flex w-full max-w-[480px] flex-col gap-3">
+                <div className="flex flex-col gap-1 rounded-2xl rounded-tl-sm border border-line2 bg-gray-200 px-5 py-4 shadow-sm">
+                  <p className="text-sm font-bold text-titlefont1">모든 과정이 완료되었어요!</p>
+                  <p className="text-xs text-bodyfont4">견적서와 협상안은 커리어 보관함에서 확인하실 수 있어요.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => router.push("/career?tab=estimates")}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line2 bg-transparent py-2.5 text-sm font-semibold text-main100 transition hover:bg-main25 cursor-pointer"
+                  >
+                    <FileText className="h-4 w-4" strokeWidth={2} />
+                    보관함 보기
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line2 bg-transparent py-2.5 text-sm font-semibold text-titlefont1 transition hover:bg-gray-100 cursor-pointer"
+                  >
+                    <RefreshCw className="h-4 w-4" strokeWidth={2} />
+                    새로 계산하기
+                  </button>
+                </div>
               </div>
             )}
 
