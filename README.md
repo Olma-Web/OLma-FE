@@ -48,10 +48,10 @@ npm run lint
 
 ## 관련 문서
 
-- 프론트엔드 개요: https://docs.olma.kro.kr/frontend/overview
-- 라우팅 구조: https://docs.olma.kro.kr/frontend/routing
-- API 연동: https://docs.olma.kro.kr/frontend/api-integration
-- 인증 흐름: https://docs.olma.kro.kr/frontend/auth-flow
-- 주요 도메인 흐름: https://docs.olma.kro.kr/frontend/domain-flows
+- 프론트엔드 개요: https://olma-web.github.io/OLma-Docs/frontend/overview
+- 라우팅 구조: https://olma-web.github.io/OLma-Docs/frontend/routing
+- API 연동: https://olma-web.github.io/OLma-Docs/frontend/api-integration
+- 인증 흐름: https://olma-web.github.io/OLma-Docs/frontend/auth-flow
+- 주요 도메인 흐름: https://olma-web.github.io/OLma-Docs/frontend/domain-flows
 
-> 운영 도메인 종료 후에는 `OLma-Docs` 레포지토리를 로컬에서 실행해 문서를 확인할 수 있습니다.
+> 운영 도메인 종료 후에는 GitHub Pages 또는 `OLma-Docs` 레포지토리의 로컬 실행으로 문서를 확인할 수 있습니다.
