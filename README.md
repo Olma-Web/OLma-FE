@@ -1,58 +1,57 @@
-## github 커밋 메시지 규칙
+# OLma Frontend
 
-아래는 커밋 메시지 작성 시 사용하는 태그입니다. 커밋 메시지는 반드시 명확한 목적과 함께 아래 규칙을 따릅니다.
+OLma의 웹 프론트엔드 레포지토리입니다. 서비스의 사용자 화면과 백엔드 API 연동을 담당합니다.
 
+상세한 화면 흐름, 라우팅 구조, API 연동 정책은 `OLma-Docs`에서 관리합니다.
 
-| 태그      | 설명                           | 예시                           |
-|-----------|--------------------------------|--------------------------------|
-| FEAT      | 새로운 기능 개발에 대한 커밋     | `[FEAT] 로그인 기능 추가`        |
-| FIX       | 버그 수정에 대한 커밋            | `[FIX] 로그인 오류 수정`         |
-| BUILD     | 빌드 관련 파일 수정 / 모듈 설치 또는 삭제에 대한 커밋 | -            |
-| CHORE     | 그 외 자잘한 수정에 대한 커밋 | -         |
-| CI        | ci 관련 설정 수정에 대한 커밋  | `[CI] GitHub Actions 설정 변경`      |
-| DOCS      | 문서 수정에 대한 커밋     | `[DOCS] README 수정` |
-| CHORE     | 빌드, 패키지 매니저 설정 등     | `[CHORE] 패키지 업데이트`        |
-| STYLE     | 코드 스타일 혹은 포맷 등에 관한 커밋   | `[STYLE] 코드 포맷 정리`           |
-| REFACTOR  | 코드 리팩토링에 대한 커밋     | `[REFACTOR] 중복 로직 제거`  |
-| TEST      | 테스트 코드 수정에 대한 커밋   | `[TEST] 로그인 유닛 테스트 추가`           |
-| PERF      | 성능 개선에 대한 커밋      | `[PERF] 렌더링 최적화`  |
+## 담당 범위
 
-> 커밋 메시지 예시: [Feat] Onboarding 페이지 구현 완료, Findemail 기능 개발 <br/>
-> `태그: 변경 내용 간략히 설명`
+- 랜딩 페이지
+- 로그인 및 회원가입
+- 온보딩 플로우
+- 스마트 견적 계산기
+- 견적 저장 및 이전 견적서 불러오기
+- 시장 단가 분석 대시보드
+- 커리어 관리
+- 커뮤니티
+- 마이페이지 및 계정 설정
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## 기술 스택
 
-## Getting Started
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- lucide-react
+- html2canvas-pro
 
-First, run the development server:
+## 로컬 실행
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+기본 실행 주소는 `http://localhost:3000`입니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 빌드 및 검사
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm run lint
+```
 
-## Learn More
+## 관련 레포
 
-To learn more about Next.js, take a look at the following resources:
+- Backend: https://github.com/Olma-Web/OLma-BE
+- Docs: https://github.com/Olma-Web/OLma-Docs
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 관련 문서
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- 프론트엔드 개요: https://docs.olma.kro.kr/frontend/overview
+- 라우팅 구조: https://docs.olma.kro.kr/frontend/routing
+- API 연동: https://docs.olma.kro.kr/frontend/api-integration
+- 인증 흐름: https://docs.olma.kro.kr/frontend/auth-flow
+- 주요 도메인 흐름: https://docs.olma.kro.kr/frontend/domain-flows
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> 운영 도메인 종료 후에는 `OLma-Docs` 레포지토리를 로컬에서 실행해 문서를 확인할 수 있습니다.
